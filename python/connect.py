@@ -69,6 +69,21 @@ CONECT   67   33
 CONECT   68   34
 CONECT   69   36
 CONECT   70   37'''
+class Conect:
+    def __init__(self,connects):
+        self.conect=deepcopy(connects)
+    def cut(self,atom1,atom2):
+        self.conect[atom1].remove(atom2)
+        self.conect[atom2].remove(atom1)
+
+class Ring:
+    def __init__(self,ringatoms):
+        self.atoms=tuple(ringatoms)
+        self.fused=False
+        self.fused_atoms=[]
+
+class Fragment:
+    pass
 
 conects=ligand.replace('CONECT','').split('\n')
 atoms=[]
@@ -110,15 +125,14 @@ print 'connect_copy has',len(connect_copy)
 class branch:
     def __init__(self,point,come,go):
         self.point=point
-        self.come=go
+        self.come=come
         self.go=go
 
-##def restart_ring_loop():
-##    breakpoint=branch(startpoint,'None',connect_restore[startpoint][0])
-##    connect=connect_restore.copy()
-##    reach=startpoint
-##    print path
-##    path=[]
+def restart_ring_loop():
+    breakpoint=branch(startpoint,'None',connect_restore[startpoint][0])
+    connect=deepcopy(connect_restore)
+    reach=startpoint#
+    startp=reach#
 
 
 startpoint=atoms_nosc[2]
@@ -129,62 +143,39 @@ path=[]
 ringstart=''
 ringend=''
 ring_switch=False
-ringsave=False
+save_ring=False
 connect_restore=deepcopy(connect_copy)
 connect=deepcopy(connect_copy)
 startp=startpoint
 breakpoint=branch(startp,'None',connect[startp][0])
-count=1
 
 while len(connect_restore[startpoint])!=0:
-##    if len(connect_copy[startp])>1:
-##        if startp==startpoint:
-##            if len(connect[startp])>1:
-##                breakpoint=branch(startp,connect[startp][1],connect[startp][0])
-##            else:breakpoint=False
-##        
-##        else:
-##            breakpoint=branch(startp,connect[startp][1],connect[startp][0])
-##            path=[breakpoint.point]
-##            path.append(reach)
-
     reach=next_atom(startp,connect)
     if reach==ringstart:
         if ring_switch==True:
-            ringsave=True
-            print 'now save ring!'
-    if ringsave==True:
+            save_ring=True
+##            print 'now save ring!'
+    if save_ring==True:
         path.append(reach)
     if reach==ringend:
-        print 'ring is',path
+##        print 'ring is',path
         rings.append(path)
         for i in path:
             if i not in ring_atoms:ring_atoms.append(i)
         path=[]
         ring_switch=False
-        ringsave=False
+        save_ring=False
             
-#    if reach=='25':break
-#    print 'round:',count#
-    count+=1#
-    print 'startp',startp,'reach',reach#
-#    print path
+##    print 'startp',startp,'reach',reach#
     if 'ring' in reach:
-#        print reach[1],reach[2]#
         connect_restore[reach[1]].remove(reach[2])
         connect_restore[reach[2]].remove(reach[1])
-        print connect_restore[reach[1]],connect_restore[reach[2]]
-#        rings.append(path)
-#        for i in path:
-#            if i not in ring_atoms:ring_atoms.append(i)
-#        path=[breakpoint.point]
+##        print connect_restore[reach[1]],connect_restore[reach[2]]
         ring_switch=True
         path=[]
-#        print path
         ringstart=reach[2]
         ringend=reach[1]
-        print 'start save ring, ringstart is',ringstart,'ringend is',ringend
-#        restart_ring_loop()
+##        print 'start save ring, ringstart is',ringstart,'ringend is',ringend
         breakpoint=branch(startpoint,'None',connect_restore[startpoint][0])
         connect=deepcopy(connect_restore)
         reach=startpoint#
@@ -194,42 +185,77 @@ while len(connect_restore[startpoint])!=0:
     elif len(connect[reach])==0:
         connect_restore[breakpoint.go].remove(breakpoint.point)
         connect_restore[breakpoint.point].remove(breakpoint.go)
-#        restart_ring_loop()
         if len(connect_restore[startpoint])==0:break
         breakpoint=branch(startpoint,'None',connect_restore[startpoint][0])
         connect=deepcopy(connect_restore)
         reach=startpoint#
         startp=reach#
-#        print path
-        path=[]
         continue
     
     if len(connect[reach])>=2:
         breakpoint=branch(reach,startp,connect[reach][0])
-#        if ring_switch != True:path.append(breakpoint.point)
-#        ring_switch=True
-#        path=[breakpoint]
         
-    print connect_restore[startp], connect_restore[reach]
+##    print connect_restore[startp], connect_restore[reach]
     startp=reach
 
+individual_ring=[]
+ringstemp=rings[:]
+ringcontact={}
+rings_contact={}
+rings_array={}
+ringlargest=0
+for i in rings:
+    if len(i)>ringlargest:ringlargest=len(i)
 
+for i in rings:
+    countring=0
+    count=0
+    for j in i:
+        for k in rings:
+            if k!=i:
+                for kn in k:
+                    if kn==j:count+=1
+                if count>0:
+                    if tuple(i) not in rings_contact:rings_contact[tuple(i)]=[]
+                    if k not in rings_contact[tuple(i)]:rings_contact[tuple(i)].append(k)
+                    countring+=1
+            count=0
+    if countring not in ringcontact:ringcontact[countring]=[]
+    ringcontact[countring].append(i)
+rings_array=deepcopy(rings_contact)
+for i in rings_contact:
+    for j in rings_contact[i]:
+        for k in rings_contact[tuple(j)]:
+            if k not in rings_contact[i]:rings_array[i].append(k)
 
+rings_array2={}
+rings_array3=[]
+rings_array4={}
+ringcount=0
+for i in rings_array:
+    if list(i) not in rings_array3:
+        rings_array4[ringcount]=rings_array[i]
+        rings_array2[i]=rings_array[i]
+        ringcount+=1
+    for j in rings_array[i]:
+        if j not in rings_array3:
+            rings_array3.append(j)
 
+fuse_atoms={}
+for i in rings_array4:
+    fuse_atoms[i]=[]
+    for j in rings_array4[i]:
+        indexj=rings_array4[i].index(j)
+        for jn in rings_array4[i][indexj]:
+            for k in rings_array4[i]:
+                indexk=rings_array4[i].index(k)
+                if k!=j:
+                    for kn in rings_array4[i][indexk]:
+                        if kn==jn:
+                            if jn not in fuse_atoms[i]:fuse_atoms[i].append(jn)
 
-
-
-##allpaths=[]
-##a=True
-##b=atoms_nosc[0]
-##path=[]
-##print 'start point is',b##
-##while a==True:
-##    if b not in path:path.append(b)
-##    else:break
-##    b=next_atom(b,connect_copy)
-##    if 'ring' in b:
-##        allpaths.append(path)
-##        path=[]
-##        break
-
+tempconnect={}
+for i in rings[2]:
+    tempconnect[i]=connect_copy[i]
+    for j in connect_copy[i]:
+        if j not in rings[2]:tempconnect[i].remove(j)
