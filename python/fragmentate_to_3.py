@@ -4,6 +4,7 @@ import math
 import os
 import sys
 import glob
+import shutil
 
 def sortlen(f1,f2):
     if len(f1)<len(f2):return -1
@@ -293,10 +294,10 @@ class Conect:
         return False
 
     ##fragmentate the molecule to fragment larger>3. One atom molecule dont contain conect information.
-    def fragmentation(self):
-        #exclude the molecule<3 atoms.Retain its conect.
+    def fragmentation(self,fragnum):
+        #exclude the molecule<3/4 atoms. Retain its conect.
         for i in self.count_fragment(self.atom_conects):
-            if len(i)<3:
+            if len(i)<fragnum:####
                 self.fragments.append(set(i))
                 for j in i:
                     self.fragments_conects[j]=self.atom_conects[j]
@@ -313,17 +314,21 @@ class Conect:
         lonely={}
         fragments=self.count_fragment(conects)#fragments after del the ring.
         for i in fragments:
-            if len(i)==3:#directly retain the small fragment.
+            if len(i)==fragnum:#directly retain the small fragment.#####
                 for j in i:
                     reconects[j]=conects[j][:]
                     del conects[j]                    
-            elif len(i)<3:#the small fragment<3 atoms keep to last to process.
+            elif len(i)<fragnum:#the small fragment<3/4 atoms keep to last to process.#####
                 for j in i:
-                    if j in self.sidechain_atoms:
+                    if j in self.sidechain_atoms: #the small fragment linked to ring firstly processed.
                         reconects[j]=conects_origin[j][:]
+                        for k in reconects[j]:
+                            if k in self.ring_atoms:
+                                reconects[k].append(j)
                     else:lonely[j]=conects[j][:]
                     del conects[j]
         fragments=self.count_fragment(conects)
+
 
         while conects!={}:#all atoms have been processed/
             startpoint=[]
@@ -341,25 +346,34 @@ class Conect:
                     reach=conects[i][0]
                     self.cut(start,reach)#cut the bond and del start point.
                     #if start point's fragment less than 3 atoms,conect to next atoms.
-                    if len(self.count_atoms(start,reconects))<3: 
+                    if len(self.count_atoms(start,reconects))<fragnum: #####
                         self.rebond(start,reach,reconects)
                 del conects[start]                    
-        #some new small fragment<3 generated during fragmentation.
+        #some new small fragment<3/4 generated during fragmentation.
         for i in self.count_fragment(reconects):
-            if len(i)<3:
+            if len(i)<fragnum:#####
                 for j in i:
                     if j not in lonely:
                         reconects[j]=[] #del its conect(2 atom fragment)
-                        lonely[j]=[] #save to lonely atoms.            
-        for i in lonely:
-            frag_min=250
-            for j in conects_origin[i]: #the nearby atoms and their fragment volume.
-                frag_len=len(self.count_atoms(j,reconects))
-                if frag_len>=3:
-                    if frag_len<frag_min: #link to the smallest fragment.
-                                frag_min=len(self.count_atoms(j,reconects))
-                                reach=j
-            self.rebond(i,reach,reconects)
+                        lonely[j]=[] #save to lonely atoms.
+        loop=True
+        while loop:
+            loop=False
+            lonely_copy=deepcopy(lonely)
+            for i in lonely:
+                frag_min=250
+                for j in conects_origin[i]: #the nearby atoms and their fragment volume.
+                    frag_len=len(self.count_atoms(j,reconects))
+                    if frag_len>=fragnum:#######
+                        if frag_len<frag_min: #link to the smallest fragment.
+                                    frag_min=len(self.count_atoms(j,reconects))
+                                    reach=j
+                if frag_min==250: #the nearby is too small,to exclude the non-process middle atom in fragment containing 3 atoms.
+                    loop=True #Need further loop.
+                    continue                                      
+                self.rebond(i,reach,reconects)
+                del lonely_copy[i]
+            lonely=deepcopy(lonely_copy)
         fragments_set=self.count_fragment(reconects)
         fragments_set.sort(sortlen)
         self.restart()
@@ -467,7 +481,7 @@ class Atom:
     # Requires: A string containing the PDB line
     def ReadPDBLine(self, Line):
         self.line = Line
-        self.atomname = Line[11:16].strip()
+        self.atomname = Line[12:16].strip()
         self.chain = Line[21:22]
         if Line[22:26].strip() != "":
             self.resid = int(Line[22:26])
@@ -484,7 +498,8 @@ class Atom:
         self.coordinates = Point(float(Line[30:38]), float(Line[38:46]), float(Line[46:54]))
         
         if len(Line) >= 79:
-            self.element = Line[76:79].strip().upper() # element specified explicitly at end of life
+            self.element = Line[76:78].strip().upper() # element specified explicitly at end of life
+            self.charge = Line [78:80].strip()
         elif self.element == "": # try to guess at element from name
             two_letters = self.atomname[0:2].strip().upper()
             if two_letters=='BR':
@@ -522,23 +537,22 @@ class Atom:
         self.element = self.element.replace('8','')
         self.element = self.element.replace('9','')
 
-        self.PDBIndex = Line[6:12].strip()
-        self.resname = Line[16:20]
+        self.PDBIndex = Line[6:11].strip()
+        self.resname = Line[17:20]
         if self.resname.strip() == "": self.resname = " MOL"
         
     # Creates a PDB line from the atom object
     # Returns: PDB String
     def CreatePDBLine(self):
-
-        #if len(self.atomname) > 1: self.atomname = self.atomname[:1].upper() + self.atomname[1:].lower()
-
-        output = "ATOM "
-        #output = output + str(index).rjust(6) + self.atomname.rjust(5) + self.residue.rjust(4)
-        output = output + self.PDBIndex.rjust(6) + self.atomname.rjust(5) + self.resname.rjust(4)
-        output = output + ("%.3f" % self.coordinates.x).rjust(18)
+        output = "ATOM".ljust(6)
+        output = output + self.PDBIndex.rjust(5) + ' '
+        if len(self.element)==2:output = output + self.atomname.ljust(5) #the strang atom name rule...' C1 'and 'Si  '
+        elif len(self.element)==1:output = output + ' ' + self.atomname.ljust(4)
+        output = output + self.resname.rjust(3)+self.chain.rjust(2)+str(self.resid).rjust(4)
+        output = output + ("%.3f" % self.coordinates.x).rjust(12)
         output = output + ("%.3f" % self.coordinates.y).rjust(8)
         output = output + ("%.3f" % self.coordinates.z).rjust(8)
-        output = output + self.element.rjust(24) # + "   " + str(uniqueID) #This last part must be removed
+        output = output + self.element.rjust(24)+ self.charge.ljust(2)# + "   " + str(uniqueID) #This last part must be removed
         return output
 
     def ReadMOL2Line(self, Line):
@@ -571,7 +585,6 @@ class Atom:
     
 # PDB class
 class PDB:
-
     def __init__ (self):
         self.AllAtoms={}
         self.Conects=Conect()
@@ -605,9 +618,17 @@ class PDB:
         self.Conects.conects=conects[:]
         self.Conects.restart()
         self.Conects.find_ring_atoms()
+        if len(self.AllAtoms)>len(self.Conects.atoms): #molecule only single atom will loss his conects.
+            for i in self.AllAtoms:
+                if self.AllAtoms[i].PDBIndex not in self.Conects.atoms:
+                    self.Conects.fragments.append(set(self.AllAtoms[i].PDBIndex))#firstly add to fragment lib.
+                    self.heavy_atoms_Conects.fragments.append(set([self.AllAtoms[i].PDBIndex]))
+                    self.Conects.atoms_index[self.AllAtoms[i].PDBIndex]=i #add to atom-Allatom_index
+                    self.heavy_atoms_Conects.atoms_index[self.AllAtoms[i].PDBIndex]=i
+                    print 'Atom',self.AllAtoms[i].PDBIndex,'is a single atom!!'
         heavyconects=[]
         hydrogens={}
-        for i in self.Conects.conects:
+        for i in self.Conects.conects: #build the atoms_index and find the non-hydrogen atoms.
             for j in self.AllAtoms:
                 if i[0]==self.AllAtoms[j].PDBIndex:
                     self.Conects.atoms_index[i[0]]=j
@@ -630,7 +651,15 @@ class PDB:
         count=1
         if not os.path.exists(self.filename[:-4]+os.sep):os.mkdir(self.filename[:-4]+os.sep)
         for i in self.heavy_atoms_Conects.fragments:
-            filepdb = open(self.filename[:-4]+os.sep+os.path.basename(self.filename)[:-4]+'_'+str(count).rjust(4,'0')+'.pdb',"w")
+            if len(i)==1: #special case when mol contains only one atom
+                filepdb = open(self.filename[:-4]+os.sep+os.path.basename(self.filename)[:-4]+'_'+'Single_'+str(count).rjust(4,'0')+'.pdb',"w")
+                filepdb.write(self.AllAtoms[self.heavy_atoms_Conects.atoms_index[list(i)[0]]].CreatePDBLine() + '\n')
+                filepdb.close()
+                count+=1
+                continue
+            if self.heavy_atoms_Conects.judge_ring_fragment(i):RingOrChain='Ring' #identify the fragment containing ring or not.
+            else:RingOrChain='Chain'
+            filepdb = open(self.filename[:-4]+os.sep+os.path.basename(self.filename)[:-4]+'_'+ RingOrChain + '_' +str(count).rjust(4,'0')+'.pdb',"w")
             for j in i:
                 filepdb.write(self.AllAtoms[self.heavy_atoms_Conects.atoms_index[j]].CreatePDBLine() + '\n')
             for j in i:
@@ -668,7 +697,7 @@ class MOL2:
         self.Conects.read_conects_MOL2(FileName)
         for line in lines:
             if '@<TRIPOS>ATOM' in line:
-                save_atoms=True
+                save_atoms=True #the next line to save.
                 continue
             if save_atoms:
                 if line[0]!='@' and line!='\n' and line!='':
@@ -680,7 +709,7 @@ class MOL2:
                     else:
                         self.non_hydrogens.append(TempAtom.MOL2Index)                                        
                     autoindex = autoindex + 1
-                else:save_atoms=False
+                else:save_atoms=False #reach the end.
             #read the non-hydrogen bond and save to    
             if '@<TRIPOS>BOND' in line:
                 save_bonds=True
@@ -698,8 +727,16 @@ class MOL2:
                 else:
                     save_bonds=False
                     break #break for some mol2 containing more than one molecule.
+        if len(self.AllAtoms)>len(self.Conects.atoms): #special case when molecules contain only one atom.
+            for i in self.AllAtoms:
+                if self.AllAtoms[i].MOL2Index not in self.Conects.atoms:
+                    self.Conects.fragments.append(set(self.AllAtoms[i].MOL2Index))
+                    self.heavy_atoms_Conects.fragments.append(set([self.AllAtoms[i].MOL2Index]))
+                    self.Conects.atoms_index[self.AllAtoms[i].MOL2Index]=i
+                    self.heavy_atoms_Conects.atoms_index[self.AllAtoms[i].MOL2Index]=i
+                    print 'Atom',self.AllAtoms[i].MOL2Index,'is a single atom!!'
         heavyconects=[]
-        for i in self.Conects.conects:
+        for i in self.Conects.conects: #add to atom_index
             for j in self.AllAtoms:
                 if i[0]==self.AllAtoms[j].MOL2Index:
                     self.Conects.atoms_index[i[0]]=j
@@ -719,6 +756,12 @@ class MOL2:
         RingOrChain=''
         if not os.path.exists(self.filename[:-5]+os.sep):os.mkdir(self.filename[:-5]+os.sep)                
         for i in self.heavy_atoms_Conects.fragments:
+            if len(i)==1: #special case for mol contains only one atom
+                filepdb = open(self.filename[:-4]+os.sep+os.path.basename(self.filename)[:-4]+'_'+'Single_'+str(count).rjust(4,'0')+'.pdb',"w")
+                filepdb.write(self.AllAtoms[self.heavy_atoms_Conects.atoms_index[list(i)[0]]].CreatePDBLine() + '\n')
+                filepdb.close()
+                count+=1
+                continue
             if self.heavy_atoms_Conects.judge_ring_fragment(i):RingOrChain='Ring'
             else:RingOrChain='Chain'
             frag_bond_num=0
@@ -729,7 +772,7 @@ class MOL2:
             for atom in i:
                 frag_atom_index[atom]=atom_index
                 atom_index+=1
-            for j in i:
+            for j in i: #add to bond information
                 for k in self.heavy_atoms_Conects.fragments_conects[j]:
                     if set([j,k]) not in bonds:
                         frag_bond_num+=1
@@ -759,12 +802,17 @@ def get_commandline_parameters():
 	# now get the defaults from the commandline
     print "Reading parameters from the commandline..."
     argv = {}
-    keywords = ['files']
+    keywords = ['-fragnum','files']
+    argv['-fragnum']=3
     input_file=[]
+    argv_used=[]
     for i in sys.argv[1:]:
-        if i not in keywords:
+        if i not in keywords and i not in argv_used:
             input_file.append(i)
-        else:break
+        if i == '-fragnum':
+            argv['-fragnum']=int(sys.argv[sys.argv.index('-fragnum')+1])
+            print 'fragnum is set to',sys.argv[sys.argv.index('-fragnum')+1]
+            argv_used.append(sys.argv[sys.argv.index('-fragnum')+1])
     molfiles=set([])
     for i in input_file:
         found=glob.glob(i)
@@ -781,21 +829,31 @@ def get_commandline_parameters():
 
 argv=get_commandline_parameters()
 molfiles=argv['files']
+filep=os.path.dirname(os.path.abspath(molfiles[0]))
+if not os.path.exists(filep+os.sep+'processed'):os.mkdir(filep+os.sep+'processed')
 for i in molfiles:
     if i[-4:]=='.pdb':
         print 'PDB process',i
         pdb=PDB()
         pdb.LoadPDB(i)
-        pdb.heavy_atoms_Conects.fragmentation()
+        pdb.heavy_atoms_Conects.fragmentation(argv['-fragnum'])
         pdb.savefragments_each()
+        shutil.move(i,filep+os.sep+'processed')
     elif i[-5:]=='.mol2':
         print 'MOL2 process',i
         mol2=MOL2()
         mol2.LoadMOL2(i)
-        mol2.heavy_atoms_Conects.fragmentation()
+        mol2.heavy_atoms_Conects.fragmentation(argv['-fragnum'])
         mol2.savefragments_each()
+        shutil.move(i,filep+os.sep+'processed')
 
-##f=r'D:\Documents and Settings\zhaozx\Desktop\ring_fragment.mol2'
+##i="D:\Documents and Settings\zhaozx\Desktop\ligand_test-2.pdb"
+##pdb=PDB()
+##pdb.LoadPDB(i)
+##pdb.heavy_atoms_Conects.fragmentation(3)
+##pdb.savefragments_each()
+
+##f=r'C:\Users\Hom\Desktop\single.mol2'
 ##mol2=MOL2()
 ##mol2.LoadMOL2(f)
 ##mol2.heavy_atoms_Conects.fragmentation()
