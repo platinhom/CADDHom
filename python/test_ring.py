@@ -234,12 +234,29 @@ class Conect:
         self.find_ring_link_atoms()#find the atoms link to the rings 
         self.fused_find()#find the fused information
 
+    ##remove the 'link' in the conect
     def removelink(self,conects={}):
         if conects=={}:conects=self.atom_conects
         for i in conects:
             for j in range(0,conects[i].count('link')):
                 conects[i].remove('link')
 
+    ##remove the 'rlink' in the conect
+    def removerlink(self,conects={}):
+        if conects=={}:conects=self.atom_conects
+        for i in conects:
+            for j in range(0,conects[i].count('rlink')):
+                conects[i].remove('rlink')
+
+    ##calculate the length of the conect without 'link' and 'rlink'
+    def len_nolink(self,conect=[]):
+        conect2=conect[:]
+        for i in range(conect2.count('link')):
+            conect2.remove('link')
+        for i in range(conect2.count('rlink')):
+            conect2.remove('rlink')
+        return len(conect2)
+    
 ##    def fragmentation(self):
 ##        conects=deepcopy(self.atom_conects)
 ####        fragment_end_atoms={}
@@ -386,7 +403,7 @@ class Conect:
         return conects
 
 
-f='D:\Documents and Settings\zhaozx\Desktop/ligand_ring2.pdb'
+f='C:\Users\Hom\Desktop/ligand_ring2.pdb'
 a=Conect()
 a.read_conects_PDB(f)
 a.remove_sidechain()
