@@ -22,6 +22,7 @@ class Conect:
         self.atom_conects={}#atoms and their conects
         self.atoms=[]
         self.ends=[]#atoms at the end of the sidechain
+        self.bonds={}
         self.ring_atoms=[]#atoms in the rings
         self.ring_linkers=[]#atoms link the ring together as the core.
         self.ring_link_atoms={}#the atoms that link to the ring atoms.
@@ -70,7 +71,6 @@ class Conect:
         lines=f.readlines()
         f.close()
         atom_conects={}
-        bonds_records=set([])
         bonds={}
         save=False
         for line in lines:
@@ -84,11 +84,8 @@ class Conect:
                 if items[2] not in atom_conects:atom_conects[items[2]]=[]
                 atom_conects[items[1]].append(items[2])
                 atom_conects[items[2]].append(items[1])
-##                if (items[1],items[2]) not in bonds_records:
-##                    bonds_records.add((items[1],items[2]))
-##                    bonds_records.add((items[2],items[1]))
-                if items[1] not in bonds:bonds[items[1]]=(items[1],items[2],items[3])
-                if items[2] not in bonds:bonds[items[2]]=(items[1],items[2],items[3])                                        
+                bonds[(items[1],items[2])]=items[3]
+                bonds[(items[2],items[1])]=items[3]                                       
         conects=[]
         for i in atom_conects:
             conect=[i]
@@ -97,6 +94,7 @@ class Conect:
             conects.append(conect)
         conects.sort(sort_list_0)
         self.conects=conects[:]
+        self.bonds=deepcopy(bonds)
         self.restart()
         self.find_ring_atoms()
         return bonds
@@ -543,6 +541,34 @@ class Atom:
         output = output + self.element.rjust(24) # + "   " + str(uniqueID) #This last part must be removed
         return output
 
+    def ReadMOL2Line(self, Line):
+        self.line = Line
+        items=Line.split()
+        self.MOL2Index = items[0]
+        self.atomname = items[1]
+        self.chain = ''
+        self.coordinates = Point(float(items[2]), float(items[3]), float(items[4]))
+        self.type=items[5]
+        self.element=self.type[0:2].strip('.')
+        if len(items)==9:
+            self.resid = int(items[6])
+            self.resname = items[7]
+            self.charge = items[8]
+
+    def CreateMOL2Line(self, mol2):
+        if mol2.len_atom==0:
+            len_atom=4
+            len_resid=3
+            len_resname=6
+        else:
+            len_atom=mol2.len_atom
+            len_resid=mol2.len_resid
+            len_resname=mol2.len_resid
+        output=self.MOL2Index.rjust(len_atom)+ ' ' +self.atomname.ljust(5)
+        output=output+("%.4f" % self.coordinates.x).rjust(10) + ("%.4f" % self.coordinates.y).rjust(11)+ ("%.4f" % self.coordinates.z).rjust(11)+ ' '
+        output=output+self.type.ljust(6)+str(self.resid).rjust(len_resid)+ ' ' + self.resname.ljust(len_resname)+ self.charge.rjust(9)+ '\n'
+        return output
+    
 # PDB class
 class PDB:
 
@@ -550,6 +576,8 @@ class PDB:
         self.AllAtoms={}
         self.Conects=Conect()
         self.heavy_atoms_Conects=Conect()
+        self.hydrogens=[]
+        self.non_hydrogens=[]
         self.filename=''
 
     # Loads a PDB from a file
@@ -602,16 +630,128 @@ class PDB:
         count=1
         if not os.path.exists(self.filename[:-4]+os.sep):os.mkdir(self.filename[:-4]+os.sep)
         for i in self.heavy_atoms_Conects.fragments:
-            file = open(self.filename[:-4]+os.sep+os.path.basename(self.filename)[:-4]+'_'+str(count).rjust(4,'0')+'.pdb',"w")
+            filepdb = open(self.filename[:-4]+os.sep+os.path.basename(self.filename)[:-4]+'_'+str(count).rjust(4,'0')+'.pdb',"w")
             for j in i:
-                file.write(self.AllAtoms[self.heavy_atoms_Conects.atoms_index[j]].CreatePDBLine() + os.linesep)
+                filepdb.write(self.AllAtoms[self.heavy_atoms_Conects.atoms_index[j]].CreatePDBLine() + '\n')
             for j in i:
-                file.write('CONECT'+j.rjust(5))
+                filepdb.write('CONECT'+j.rjust(5))
                 for k in self.heavy_atoms_Conects.fragments_conects[j]:
-                    file.write(k.rjust(5))
-                file.write(os.linesep)
-            file.close()
+                    filepdb.write(k.rjust(5))
+                filepdb.write('\n')
+            filepdb.close()
             count+=1
+
+class MOL2:
+    def __init__(self):
+        self.AllAtoms={}
+        self.Conects=Conect()
+        self.hydrogens=[]#the mol2index,not atom index
+        self.non_hydrogens=[]
+        self.heavy_atoms_Conects=Conect()
+        self.bonds={}
+        self.filename=''
+        self.len_atom=0
+        self.len_resid=0
+        self.len_resname=0
+        
+    def LoadMOL2(self, FileName):
+        autoindex = 1
+        self.__init__()
+        # Now load the file into a list
+        file = open(FileName,"r")
+        lines = file.readlines()
+        file.close()
+        self.filename=FileName
+        save_atoms=False
+        save_bonds=False
+        bonds={}
+        self.Conects.read_conects_MOL2(FileName)
+        for line in lines:
+            if '@<TRIPOS>ATOM' in line:
+                save_atoms=True
+                continue
+            if save_atoms:
+                if line[0]!='@' and line!='\n' and line!='':
+                    TempAtom = Atom()
+                    TempAtom.ReadMOL2Line(line)
+                    self.AllAtoms[autoindex] = TempAtom                
+                    if TempAtom.element=='H':
+                        self.hydrogens.append(TempAtom.MOL2Index)
+                    else:
+                        self.non_hydrogens.append(TempAtom.MOL2Index)                                        
+                    autoindex = autoindex + 1
+                else:save_atoms=False
+            #read the non-hydrogen bond and save to    
+            if '@<TRIPOS>BOND' in line:
+                save_bonds=True
+                continue
+            if save_bonds:
+                if line[0]!='@' and line!='\n' and line!='':
+                    items=line.split()#bond in mol2:num atom1 atom2 bond_level
+                    bonds[(items[1],items[2])]=items[3]
+                    bonds[(items[2],items[1])]=items[3]
+                    if items[1] not in self.hydrogens and items[2] not in self.hydrogens:
+                        if items[1] not in self.heavy_atoms_Conects.atom_conects:self.heavy_atoms_Conects.atom_conects[items[1]]=[]
+                        if items[2] not in self.heavy_atoms_Conects.atom_conects:self.heavy_atoms_Conects.atom_conects[items[2]]=[]
+                        self.heavy_atoms_Conects.atom_conects[items[1]].append(items[2])
+                        self.heavy_atoms_Conects.atom_conects[items[2]].append(items[1])
+                else:
+                    save_bonds=False
+                    break #break for some mol2 containing more than one molecule.
+        heavyconects=[]
+        for i in self.Conects.conects:
+            for j in self.AllAtoms:
+                if i[0]==self.AllAtoms[j].MOL2Index:
+                    self.Conects.atoms_index[i[0]]=j
+        for i in self.heavy_atoms_Conects.atom_conects:
+            conect=[i]
+            conect.extend(self.heavy_atoms_Conects.atom_conects[i])
+            heavyconects.append(conect)
+        self.bonds=deepcopy(bonds)
+        self.heavy_atoms_Conects.bonds=deepcopy(bonds)
+        self.heavy_atoms_Conects.conects=deepcopy(heavyconects)
+        self.heavy_atoms_Conects.restart()
+        self.heavy_atoms_Conects.find_ring_atoms()
+
+    def savefragments_each(self):
+        count=1
+        lenatom=self.len_atom
+        RingOrChain=''
+        if not os.path.exists(self.filename[:-5]+os.sep):os.mkdir(self.filename[:-5]+os.sep)                
+        for i in self.heavy_atoms_Conects.fragments:
+            if self.heavy_atoms_Conects.judge_ring_fragment(i):RingOrChain='Ring'
+            else:RingOrChain='Chain'
+            frag_bond_num=0
+            bonds=[]
+            bond_lines=[]
+            frag_atom_index={}
+            atom_index=1
+            for atom in i:
+                frag_atom_index[atom]=atom_index
+                atom_index+=1
+            for j in i:
+                for k in self.heavy_atoms_Conects.fragments_conects[j]:
+                    if set([j,k]) not in bonds:
+                        frag_bond_num+=1
+                        bonds.append(set([j,k]))
+                        bond_line=str(frag_bond_num).rjust(lenatom)+' '+str(frag_atom_index[j]).rjust(lenatom)+' '+ str(frag_atom_index[k]).rjust(lenatom)+' '+self.bonds[(k,j)].ljust(5)+'\n'
+                        bond_lines.append(bond_line)
+            filemol2 = open(self.filename[:-5]+os.sep+os.path.basename(self.filename)[:-5]+'_'+ RingOrChain + '_' + str(count).rjust(4,'0')+'.mol2',"w")
+            filemol2.write('@<TRIPOS>MOLECULE\n'+os.path.basename(self.filename)[:-5]+'_'+ RingOrChain + '_' +str(count).rjust(4,'0')+'\n')
+            filemol2.write(str(len(i))+'\t'+str(frag_bond_num)+'\t'+'0\t'+'0\t'+'0\n')
+            filemol2.write('SMALL\nUSER_CHARGES\n')
+            filemol2.write('@<TRIPOS>ATOM\n')
+            for j in i:
+                atom_line=self.AllAtoms[self.Conects.atoms_index[j]].CreateMOL2Line(self)
+                atom_line=atom_line.replace(j,str(frag_atom_index[j]).rjust(len(j)),1)
+                filemol2.write(atom_line)
+            filemol2.write('@<TRIPOS>BOND\n')
+            for line in bond_lines:
+                filemol2.write(line)
+            filemol2.write('\n')
+            filemol2.close()
+            count+=1
+
                 
 # Load in command-line variables.
 # Returns: a dictionary containing user-defined values
@@ -619,29 +759,52 @@ def get_commandline_parameters():
 	# now get the defaults from the commandline
     print "Reading parameters from the commandline..."
     argv = {}
-    keywords = ['pdb_file']
-    input_pdb=sys.argv[1:]
-    pdbfiles=set([])
-    for i in input_pdb:
+    keywords = ['files']
+    input_file=[]
+    for i in sys.argv[1:]:
+        if i not in keywords:
+            input_file.append(i)
+        else:break
+    molfiles=set([])
+    for i in input_file:
         found=glob.glob(i)
         if len(found)==0: # does exist, so throw error
             print "ERROR The file doesn's exist! Please check it."
             sys.exit(0)
-        else: pdbfiles.update(found)
+        else: molfiles.update(found)
     print "The following files will be handled:"
-    for i in pdbfiles:
+    for i in molfiles:
         print '"'+i+'"',
     raw_input('Please enter any key to confirm, or close the program by Ctrl+C')
-    argv['pdb_file']=list(pdbfiles)
+    argv['files']=list(molfiles)
     return argv
 
 argv=get_commandline_parameters()
-pdbfiles=argv['pdb_file']
-for i in pdbfiles:
-    pdb=PDB()
-    pdb.LoadPDB(i)
-    pdb.heavy_atoms_Conects.fragmentation()
-    pdb.savefragments_each()
+molfiles=argv['files']
+for i in molfiles:
+    if i[-4:]=='.pdb':
+        print 'PDB process',i
+        pdb=PDB()
+        pdb.LoadPDB(i)
+        pdb.heavy_atoms_Conects.fragmentation()
+        pdb.savefragments_each()
+    elif i[-5:]=='.mol2':
+        print 'MOL2 process',i
+        mol2=MOL2()
+        mol2.LoadMOL2(i)
+        mol2.heavy_atoms_Conects.fragmentation()
+        mol2.savefragments_each()
+
+##f=r'D:\Documents and Settings\zhaozx\Desktop\ring_fragment.mol2'
+##mol2=MOL2()
+##mol2.LoadMOL2(f)
+##mol2.heavy_atoms_Conects.fragmentation()
+##mol2.savefragments_each()
+    
+##f='C:\Users\Hom\Desktop\ligand_ring2.mol2'
+##b=Conect()
+##b.read_conects_MOL2(f)
+##b.fragmentation()
     
 print 'OK!'
 raw_input('Finished,press any key to exit.')
