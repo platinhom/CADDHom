@@ -1,0 +1,101 @@
+REMARK  99                                                                      
+REMARK  99 MOE v2010.1 (Chemical Computing Group Inc.) Wed Mar 14 18:58:23 2012
+HETATM    1  C     * p   0       1.208   0.697   0.000  1.00  0.00           C  
+HETATM    2  C     * p   0       2.494   1.441   0.000  1.00  0.00           C  
+HETATM    3  O     * p   0       3.238   1.099  -1.158  1.00  0.00           O  
+HETATM    4  N     * p   0       4.481   1.845  -1.117  1.00  0.00           N  
+HETATM    5  C     * p   0       0.000   1.395   0.000  1.00  0.00           C  
+HETATM    6  C     * p   0      -1.208   0.698   0.000  1.00  0.00           C  
+HETATM    7  P     * p   0      -2.757   1.592   0.000  1.00  0.00           P  
+HETATM    8  O     * p   0      -3.986   0.540  -0.000  1.00  0.00           O  
+HETATM    9  C     * p   0      -1.208  -0.698   0.000  1.00  0.00           C  
+HETATM   10  C     * p   0       0.000  -1.395   0.000  1.00  0.00           C  
+HETATM   11  C     * p   0       1.208  -0.698   0.000  1.00  0.00           C  
+HETATM   12  C     * p   0       6.756   0.927  -4.464  1.00  0.00           C  
+HETATM   13  C     * p   0       7.372   1.070  -3.220  1.00  0.00           C  
+HETATM   14  C     * p   0       6.608   1.378  -2.095  1.00  0.00           C  
+HETATM   15  C     * p   0       5.227   1.544  -2.214  1.00  0.00           C  
+HETATM   16  C     * p   0       4.612   1.401  -3.458  1.00  0.00           C  
+HETATM   17  C     * p   0       5.376   1.093  -4.583  1.00  0.00           C  
+HETATM   18  C     * p   0       8.773   0.898  -3.114  1.00  0.00           C  
+HETATM   19  C     * p   0       9.546   0.590  -4.233  1.00  0.00           C  
+HETATM   20  C     * p   0       8.940   0.446  -5.481  1.00  0.00           C  
+HETATM   21  C     * p   0       7.559   0.610  -5.609  1.00  0.00           C  
+HETATM   22  S     * p   0       6.797   0.426  -7.190  1.00  0.00           S1+
+HETATM   23  O     * p   0       5.439   0.563  -7.447  1.00  0.00           O1-
+HETATM   24  O     * p   0       7.955   0.063  -8.324  1.00  0.00           O  
+HETATM   25  S     * p   0       9.172   1.394  -8.409  1.00  0.00           S1+
+HETATM   26  O     * p   0      10.178   1.066  -9.401  1.00  0.00           O  
+HETATM   27  O     * p   0      10.810  -0.172  -8.991  1.00  0.00           O  
+HETATM   28  F     * p   0      11.795  -0.493  -9.962  1.00  0.00           F  
+HETATM   29  O     * p   0       8.511   2.630  -8.780  1.00  0.00           O  
+HETATM   30  O     * p   0       7.518   2.918  -7.765  1.00  0.00           O  
+HETATM   31  C     * p   0       5.119  -0.238   2.840  1.00  0.00           C  
+HETATM   32  C     * p   0       5.736  -0.504   1.471  1.00  0.00           C  
+HETATM   33  C     * p   0       4.912   0.042   0.310  1.00  0.00           C  
+HETATM   34  C     * p   0       5.172   1.512   0.006  1.00  0.00           C  
+HETATM   35  C     * p   0       4.767   2.474   1.117  1.00  0.00           C  
+HETATM   36  C     * p   0       5.568   2.305   2.404  1.00  0.00           C  
+HETATM   37  C     * p   0       7.031   2.088   2.107  1.00  0.00           C  
+HETATM   38  C     * p   0       7.195   0.845   1.269  1.00  0.00           C  
+HETATM   39  C     * p   0       5.033   1.211   3.320  1.00  0.00           C  
+HETATM   40  C     * p   0       3.548   0.670  -8.284  1.00  0.00           C  
+HETATM   41  F     * p   0       2.957   0.534  -9.481  1.00  0.00           F  
+HETATM   42  C     * p   0       4.014   1.920  -7.875  1.00  0.00           C  
+HETATM   43  C     * p   0       4.629   2.062  -6.631  1.00  0.00           C  
+HETATM   44  C     * p   0       4.777   0.954  -5.796  1.00  0.00           C  
+HETATM   45  C     * p   0       4.311  -0.295  -6.205  1.00  0.00           C  
+HETATM   46  C     * p   0       3.696  -0.437  -7.448  1.00  0.00           C  
+HETATM   47  N     * p   0      10.928   0.426  -4.105  1.00  0.00           N  
+HETATM   48  O     * p   0      11.533   0.569  -2.862  1.00  0.00           O  
+HETATM   49  O     * p   0      11.698   0.119  -5.220  1.00  0.00           O  
+CONECT    1   11    5    2
+CONECT    2    1    3
+CONECT    3    2    4
+CONECT    4   34   15    3
+CONECT    5    1    6
+CONECT    6    9    5    7
+CONECT    7    6    8
+CONECT    8    7
+CONECT    9   10    6
+CONECT   10   11    9
+CONECT   11   10    1
+CONECT   12   17   13   21
+CONECT   13   14   18   12
+CONECT   14   13   15
+CONECT   15   16   14    4
+CONECT   16   17   15
+CONECT   17   16   44   12
+CONECT   18   13   19
+CONECT   19   18   20   47
+CONECT   20   19   21
+CONECT   21   20   12   22
+CONECT   22   21   23   24
+CONECT   23   22
+CONECT   24   22   25
+CONECT   25   29   26   24
+CONECT   26   27   25
+CONECT   27   26   28
+CONECT   28   27
+CONECT   29   30   25
+CONECT   30   29
+CONECT   31   39   32
+CONECT   32   31   38   33
+CONECT   33   32   34
+CONECT   34   33   35    4
+CONECT   35   36   34
+CONECT   36   37   39   35
+CONECT   37   38   36
+CONECT   38   37   32
+CONECT   39   31   36
+CONECT   40   42   46   41
+CONECT   41   40
+CONECT   42   43   40
+CONECT   43   42   44
+CONECT   44   43   45   17
+CONECT   45   46   44
+CONECT   46   45   40
+CONECT   47   19   48   49
+CONECT   48   47
+CONECT   49   47
+END
