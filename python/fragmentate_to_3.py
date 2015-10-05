@@ -53,9 +53,12 @@ class Conect:
         elif pdbfile=='' or pdbfile==None:lines=lines
         conects=[]
         for line in lines:
-            items=line.split()
-            if items[0]=='CONECT':
-                conects.append(items[1:])
+            if line[0:6]=='CONECT':
+                items=[]
+                for i in range(len(line)/5+1):
+                    if i!=0:
+                        items.append(line[i*5+1:i*5+6])
+                conects.append(items)
         self.conects=conects[:]
         self.restart()
         self.find_ring_atoms()
@@ -67,18 +70,25 @@ class Conect:
         lines=f.readlines()
         f.close()
         atom_conects={}
+        bonds_records=set([])
+        bonds={}
         save=False
         for line in lines:
             if '@<TRIPOS>BOND' in line:
                 save=True
                 continue
             if save:
-                if '@' in line:break
+                if line[0]=='@'or line=='\n' or line=='':break
                 items=line.split()#bond in mol2:num atom1 atom2 bond_level
                 if items[1] not in atom_conects:atom_conects[items[1]]=[]
                 if items[2] not in atom_conects:atom_conects[items[2]]=[]
                 atom_conects[items[1]].append(items[2])
                 atom_conects[items[2]].append(items[1])
+##                if (items[1],items[2]) not in bonds_records:
+##                    bonds_records.add((items[1],items[2]))
+##                    bonds_records.add((items[2],items[1]))
+                if items[1] not in bonds:bonds[items[1]]=(items[1],items[2],items[3])
+                if items[2] not in bonds:bonds[items[2]]=(items[1],items[2],items[3])                                        
         conects=[]
         for i in atom_conects:
             conect=[i]
@@ -89,7 +99,7 @@ class Conect:
         self.conects=conects[:]
         self.restart()
         self.find_ring_atoms()
-        return conects
+        return bonds
 
     ##cut a bond, offer two atoms, even the conects.
     def cut(self,atom1,atom2,conects=''):
@@ -416,8 +426,11 @@ class Atom:
         self.undo_coordinates = Point(99999, 99999, 99999)
         self.line=""
         self.PDBIndex = ""
+        self.MOL2Index =""
+        self.type=''
+        self.charge=''
         self.IndeciesOfAtomsConnecting=[]
-        self.ring=False
+        self.in_ring=False
 		
     def atom_radius(self):
         element=self.element.upper()
