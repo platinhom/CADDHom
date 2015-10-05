@@ -11,7 +11,8 @@ class Conect:
         self.ends=[]
         self.ring_atoms=[]
         self.rings=[]
-        
+        self.fragment=[]
+
     def allatoms(self):
         allatoms=[]
         for i in self.conects:
@@ -25,7 +26,7 @@ class Conect:
             atomsconects[i[0]]=i[1:]
         self.atom_conects=deepcopy(atomsconects)
         return atomsconects
-        
+
     def end_atoms(self):
         endatoms=[]
         for conect in self.conects:
@@ -42,17 +43,21 @@ class Conect:
                 del self.atom_conects[i]
                 self.atoms.remove(i)
         return
-    
+
     ##refit the atoms,end points,and the atom_conect attributes from conects.
     def refit(self):
         self.atoms=self.allatoms()
         self.ends=self.end_atoms()
         self.atom_conects=self.atomconnects()
 
-    ##cut a bond, offer two atoms.    
-    def cut(self,atom1,atom2):
-        self.atom_conects[atom1].remove(atom2)
-        self.atom_conects[atom2].remove(atom1)
+    ##cut a bond, offer two atoms, even the conects.
+    def cut(self,atom1,atom2,conects=''):
+        if conects=='':
+            self.atom_conects[atom1].remove(atom2)
+            self.atom_conects[atom2].remove(atom1)
+        else:
+            conects[atom1].remove(atom2)
+            conects[atom2].remove(atom1)
 
     ##from start point to another point,remove the bond.
     ##Here,num is the index to decide the move path
@@ -61,8 +66,8 @@ class Conect:
 #        if reach not in self.atom_conects:return ('Ring',startp,reach)
         self.cut(reach,startp)#remove the bond
         return reach
-    
-    ##Further del atoms from start point(an end atom) until reach branch atom 
+
+    ##Further del atoms from start point(an end atom) until reach branch atom
     def remove_line(self,startp):
         if len(self.atom_conects[startp])!=1:return
         while True:
@@ -71,7 +76,7 @@ class Conect:
                 startp=reach
             else:break
         return
-    
+
     ##remove the sidechain, conserve the rings and their linker
     def remove_sidechain(self):
         for end_atom in self.ends:
@@ -81,7 +86,7 @@ class Conect:
 
     ##To find the ring atoms and return some rings.
     def find_ring_atoms(self,startpoint=''):
-        if self.ends!=[]:self.remove_sidechain()##remove sidechain 
+        if self.ends!=[]:self.remove_sidechain()##remove sidechain
         if startpoint=='':startpoint=self.atoms[0]
         ring=[]
         ringstart=''
@@ -97,7 +102,7 @@ class Conect:
             del connect[startp]
             if reach not in connect: reach=('Ring',startp,reach)
             else: connect[reach].remove(startp)
-                        
+
             if startp==ringstart:##save the rings and ring atoms.
                 if ring_switch==True:
                     save_ring=True
@@ -113,12 +118,12 @@ class Conect:
                 ring=[]
                 ring_switch=False
                 save_ring=False
-                
+
             #print 'startp',startp,'reach',reach
             #when find a ring.restart the start point and save the ring information.
             if 'Ring' in reach:
                 self.cut(reach[1],reach[2])
-                print restore[reach[1]],restore[reach[2]]
+                #print restore[reach[1]],restore[reach[2]]
                 ring_switch=True
                 ring=[]
                 ringstart=reach[2]
@@ -127,7 +132,7 @@ class Conect:
                 breakpoint=[startpoint,restore[startpoint][0]]
                 connect=deepcopy(restore)
                 reach=startpoint#
-                startp=reach#    
+                startp=reach#
                 continue
 
             ##If find a end point of the chain.Breakpoint is use to cut the sidechain.
@@ -140,14 +145,53 @@ class Conect:
                 reach=startpoint#
                 startp=reach#
                 continue
-            
+
             if len(connect[reach])>=2:
-                breakpoint=[reach,connect[reach][0]]       
-            print restore[startp], restore[reach]
+                breakpoint=[reach,connect[reach][0]]
+            #print restore[startp], restore[reach]
             startp=reach
         self.refit()
 
-        
+    def fragmentation(self):
+        conects=deepcopy(self.atom_conects)
+        end_atoms_temp=self.ends
+        fragment_end_atoms={}
+        fragments=[]
+        processed_atoms=set([])
+        joint_temp={}
+        ##fragmentation of the sidechain
+        for i in end_atoms_temp:
+            fragment_end_atoms[i]=[i]
+            count=1
+            startp=i
+            while count<=3:
+                print startp,count
+                reach=self.atom_conects[startp][0]
+                if count==3:
+                    fragments.append(fragment_end_atoms[i])
+                    processed_atoms.update(fragment_end_atoms[i])
+                    self.cut(startp,reach,conects)
+                    break
+                if reach not in self.ring_atoms:
+                    self.cut(reach,startp)#remove the bond
+                    fragment_end_atoms[i].append(reach)
+                    if len(self.atom_conects[reach])!=1:
+                        if reach not in joint_temp:joint_temp[reach]=set([])
+                        joint_temp[reach].update(fragment_end_atoms[i])
+                        break
+                    startp=reach
+                    count=count+1
+                    print fragment_end_atoms
+                else:
+                    if reach not in joint_temp:joint_temp[reach]=set([reach])
+                    joint_temp[reach].update(fragment_end_atoms[i])
+                    break
+            print 'temp is',joint_temp
+            self.fragment.append(fragment_end_atoms[i])
+            self.atom_conects=deepcopy(conects)
+        print processed_atoms
+        return fragments
+
     ##read the CONECT information from pdb file. Need to give the file name.
     def read_conects_PDB(self,pdbfile):
         f=open(pdbfile,'r')
@@ -162,10 +206,14 @@ class Conect:
         self.refit()
         return conects
 
-    
-f='C:/Users/Hom/Desktop/ligand_ring.pdb'
+
+f='D:\Documents and Settings\zhaozx\Desktop/ligand_ring2.pdb'
 a=Conect()
 a.read_conects_PDB(f)
 a.remove_sidechain()
-len(a.atoms)
-len(a.atom_conects)
+b=len(a.atoms)
+c=len(a.atom_conects)
+a.remove_sidechain()
+a.find_ring_atoms()
+a.refresh()
+a.fragmentation()
