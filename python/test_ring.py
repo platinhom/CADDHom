@@ -1,6 +1,5 @@
 from copy import deepcopy
 
-
 class Conect:
     ##The connect information of molecule.Nothing to initial.To copy this object,use deepcopy. Need:
     ##from copy import deepcopy
@@ -72,7 +71,7 @@ class Conect:
             self.atom_conects[atom2].append(atom1)
         else:
             conects[atom1].append(atom2)
-            conects[atom2].append(atom1)        
+            conects[atom2].append(atom1)
 
     ##from start point to another point,remove the bond.
     ##Here,num is the index to decide the move path
@@ -108,7 +107,7 @@ class Conect:
         for i in rings[:-1]:
             fuse=False#to save the longly ring
             for j in rings[rings.index(i)+1:]:
-                fused=list(set(i)&set(j))#fused or not                
+                fused=list(set(i)&set(j))#fused or not
                 if fused!=[]:
                     fuse=True
                     if j==rings[-1]:fuse_last=True#last ring is not included in i.
@@ -130,7 +129,7 @@ class Conect:
         if fuse_last==False:
             fragment_rings.append(rings[-1])
             self.longly_ring.append(ring[-1])
-            
+
         #start the loop to merge the preliminary fragment to bigger fragment. Colud the loop judge from above?
         loop=True
         while loop:
@@ -145,10 +144,10 @@ class Conect:
                                 if i in further_rings:further_rings.remove(i)
                                 if j in further_rings:further_rings.remove(j)
                                 if fused not in further_rings:further_rings.append(fused)
-            fragment_rings=further_rings[:]      
+            fragment_rings=further_rings[:]
         self.fused_atoms=deepcopy(fused_atoms)
         self.fragment_rings=fragment_rings[:]
-        
+
     ##to find the atoms link to the ring
     def find_ring_link_atoms(self,ringatoms=[],conects={}):
         if ringatoms==[]:ringatoms=self.ring_atoms
@@ -231,7 +230,7 @@ class Conect:
         self.ring_linkers=list(set(ringcore)-set(self.ring_atoms))
         self.refit()#refit the bond,atoms and ends.
         self.sidechain_atoms=list(set(self.atoms)-set(ringcore))
-        self.find_ring_link_atoms()#find the atoms link to the rings 
+        self.find_ring_link_atoms()#find the atoms link to the rings
         self.fused_find()#find the fused information
 
     ##remove the 'link' in the conect
@@ -256,7 +255,57 @@ class Conect:
         for i in range(conect2.count('rlink')):
             conect2.remove('rlink')
         return len(conect2)
-    
+
+    ##find the ring atom name link to the ponit before become 'rlink'. Only suit for one 'rlink'
+    def origin_atom(self,point='',conects={},conests_origin={},strings='rlink'):
+        if conects[point].count(strings)==1:
+            origin_atom=conests_origin[point][conects[point].index(strings)]
+        return origin_atom
+
+    ##find the conect of the ring in fragment.It need to offer the fragment information.
+    def link_to_ring(self,conects={},ring_atoms=[],fragment_rings=[[]]):
+        if conects=={}:conects=self.atom_conects
+        if ring_atoms==[]:ring_atoms=self.ring_atoms
+        if fragment_rings==[[]]:fragment_rings=self.fragment_rings
+        elif fragment_rings==[]:fragment_rings=[ring_atoms]
+        conects_ring={}
+        for i in ring_atoms:
+            conects_ring[i]=[]
+            for frag in fragment_rings:
+                if i in frag:
+                    ring_frag=frag
+                    break
+            for j in conects[i]:
+                if j in ring_frag:
+                    conects_ring[i].append(j)
+        return conects_ring
+
+    def count_fragment(self,atom,conect):
+        count_atom=set([atom])
+        no_proc=set([atom])
+        need_proc=set([])
+        proc=set([])
+        connect=deepcopy(conect)
+        while True:
+            count=deepcopy(count_atom)
+            for i in no_proc:
+                count.update(connect[i])
+                for j in connect[i]:
+                    if j not in no_proc and j not in proc:
+                        need_proc.add(j)
+                proc.add(i)
+            if count==count_atom:break
+            count_atom=deepcopy(count)
+            no_proc=need_proc
+            need_proc=set([])
+        return count_atom
+
+
+
+
+
+
+
 ##    def fragmentation(self):
 ##        conects=deepcopy(self.atom_conects)
 ####        fragment_end_atoms={}
@@ -310,54 +359,103 @@ class Conect:
 ##        return conects
 
     def fragmentation(self):
-        conects=deepcopy(self.atom_conects)
+        conects=deepcopy(self.atom_conects)#saved conects
         conects_origin=deepcopy(self.atom_conects)#as reference
-        reconects={}
-        for i in self.atoms:reconects[i]=[]
+        reconects=deepcopy(self.link_to_ring())
+        for i in self.atoms:
+            if i not in self.ring_atoms:
+                reconects[i]=[]
         fragment_temp=[]
         fragment_lib=[]
         processed_atoms=set([])
-        for i in self.ring_link_atoms:
+        for i in self.ring_link_atoms:#break the bond link to rings and add the rlink
             for j in conects_origin[i]:
                 if j in self.ring_atoms:
                     conects[i].insert(conects[i].index(j),'rlink')
                     conects[j].insert(conects[j].index(i),'rlink')
                     self.cut(i,j,conects)
-        self.atom_conects=deepcopy(conects)
-        for i in self.ends:
+        conects_ring_link=deepcopy(conects)#save the atom-ring link
+        self.atom_conects=deepcopy(conects)#load saved
+        for i in self.ends: #this step to cut the long sidechain and dont influence the branch atoms.
+            fragment_temp=[]
             count=1 #include the start point
             startp=i
             while True:
                 print startp,count
                 reach=self.atom_conects[startp][0]
-                if reach=='rlink':
-                    fragment_temp=[]
-                    break
                 fragment_temp.append(startp)
-                self.cut(startp,reach)
-                if count==3:
+
+                if count==3 and reach != 'rlink':#per 3 atoms to cut
                     processed_atoms.update(fragment_temp)
                     fragment_lib.append(fragment_temp)
                     self.rebond(fragment_temp[0],fragment_temp[1],reconects)
                     self.rebond(fragment_temp[2],fragment_temp[1],reconects)
-                    conects[reach].insert(conects[reach].index(startp),'link')
+                    conects[reach].insert(conects[reach].index(startp),'link') #keep the branch feature.
                     self.cut(startp,reach,conects)
-                    for i in fragment_temp:del conects[i]
+                    for i in fragment_temp:del conects[i] #remove the processed atoms from the saved conects.
+                    if len(self.atom_conects[reach])>2:break
                     fragment_temp=[]
                     count=0
-                if len(self.atom_conects[reach])>1:
-                    fragment_temp=[]
+
+                if reach=='rlink':
+                    processed_atoms.update(fragment_temp)
+                    ring_reach=self.origin_atom(startp,conects,conects_origin,'rlink')
+##                    ring_link_startp=origin_atom(startp,conects,conects_ring_link,'rlink')
+                    if count==1:
+                        self.rebond(startp,ring_reach,reconects)
+                    elif count==2:
+                        self.rebond(startp,ring_reach,reconects)
+                        self.rebond(startp,fragment_temp[0],reconects)
+                    elif count==3:
+                        self.rebond(fragment_temp[0],fragment_temp[1],reconects)
+                        self.rebond(fragment_temp[2],fragment_temp[1],reconects)
+                        fragment_lib.append(fragment_temp)
+##                    conects[ring_reach][conects_origin[ring_reach].index(startp)]
+                    for i in fragment_temp:del conects[i]
                     break
-                else:
-                    startp=reach
-                    count+=1
-            self.atom_conects=deepcopy(conects_origin)
+
+                if len(self.atom_conects[reach])>2 and count!=3:
+                    processed_atoms.update(fragment_temp)
+                    self.rebond(startp,reach,reconects)
+                    conects[reach].insert(conects[reach].index(startp),'link')
+                    self.cut(startp,reach,conects)
+                    if count==2:
+                        self.rebond(fragment_temp[0],fragment_temp[1],reconects)
+                    for i in fragment_temp:del conects[i]
+                    break
+                self.cut(startp,reach)
+                startp=reach
+                count+=1
+            self.atom_conects=deepcopy(conects)
+
+        for i in self.ring_atoms:#remove ring atoms
+            del conects[i]
+        self.atom_conects=deepcopy(conects)
+        processed_atoms.update(self.ring_atoms)
+        for i in self.atom_conects:#remove the atoms contain more than 3 atoms yet.
+            if len(self.count_fragment(i,reconects))>=3:
+                processed_atoms.add(i)
+                for j in conects[i]:
+                    if j != 'link' and j!='rlink':
+                        conects[j].insert(conects[j].index(i),'link')
+                        conects[j].remove(i)
+                del conects[i]
+
+        while True:
+
+            break
 
 
-                    
-                
-                    
-                    
+
+
+
+
+        return (conects,reconects)
+
+
+
+
+
 
 
 ##                if reach not in self.ring_atoms:
@@ -386,7 +484,7 @@ class Conect:
 ##            self.atom_conects=deepcopy(conects)
 ##        print processed_atoms
 ##        print 'fragment_lib is',fragment_lib
-        return (conects,reconects)
+
 
     ##read the CONECT information from pdb file. Need to give the file name.
     def read_conects_PDB(self,pdbfile):
@@ -403,7 +501,7 @@ class Conect:
         return conects
 
 
-f='C:\Users\Hom\Desktop/ligand_ring2.pdb'
+f='D:\Documents and Settings\zhaozx\Desktop/ligand_ring2.pdb'
 a=Conect()
 a.read_conects_PDB(f)
 a.remove_sidechain()
@@ -411,5 +509,6 @@ b=len(a.atoms)
 c=len(a.atom_conects)
 a.find_ring_atoms()
 a.refresh()
+ringlink=a.link_to_ring()
 hi=a.fragmentation()
 print 'OK!'
