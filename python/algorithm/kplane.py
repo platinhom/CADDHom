@@ -180,8 +180,6 @@ class KPlaneObj():
 			if (y.ndim==1):
 				my=y.size;
 				ny=1
-			elif (y.ndim==2):
-				my, ny=y.shape;
 			else:
 				raise ValueError, "y dimension > 2!";
 
@@ -200,6 +198,44 @@ class KPlaneObj():
 
 	def CalcRMSArray(self,arr):
 		return np.sqrt((arr.T.dot(arr)).ravel()[0]/arr.shape[0])
+
+	def FindMatchPoint(self,num):
+		err1=self.errors[num];
+		gn1=self.dgroup[num];
+		y1=self.y[num];
+		x1=self.x[num];
+		tmpwts=np.zeros((1,self.plen));
+		rmsmin=err1;
+		nummin=num;
+		err2min=0.0;
+		absmin=np.array((0.0,0.0))
+		gdataIndex=np.where(self.partition_groups.ravel()==gn1)[0]
+		#for i in range(self.dlen):
+		for j in range(len(gdataIndex)):
+			i=gdataIndex[j]
+			if (i!=num):
+				err2=self.errors[i];
+				gn2=self.dgroup[i];
+				y2=self.y[i];
+				x2=self.x[i];
+				#rmsbefore=self.CalcRMSArray(np.array((err1,err2)));
+				tmpx=np.array((x1,x2));
+				tmpy=np.array((y1,y2));
+				tmpwts[0, :]=self.LeastSqaures(tmpx,tmpy,self.rlamda);
+				absnow=(np.abs(tmpy.T-(tmpwts[0, :].dot(tmpx.T)).T)).T;
+				rmsnow=self.CalcRMSArray(absnow);
+				if ( rmsnow<rmsmin): #and rmsnow < rmsbefore):
+					print "find better: "+str(absnow)+str(rmsnow)
+					err2min=err2;
+					absmin=absnow;
+					nummin=i;
+					rmsmin=rmsnow;
+		if (nummin==num):
+			print "Not found a better point!"
+			return num;
+		else:
+			print "Better point found: before: "+str(err1)+","+str(err2min)+"; now: "+str(absmin[0])+","+str(absmin[1])
+			return nummin;
 
 	def UpdateCenters(self):
 		updateHere=False # Whether need to update rms
@@ -222,11 +258,16 @@ class KPlaneObj():
 						print "Group disappear: "+ str(i+1)
 						if (self.print_in): print "Group disappear: "+ str(i+1)
 						maxerrn=np.argmax(self.errors)
-						print self.errors[maxerrn]
+						# print self.errors[maxerrn]
 						self.errors[maxerrn]=0.0
 						maxerrn2=np.argmax(self.errors)
-						print self.errors[maxerrn2]
+						#print self.errors[maxerrn2]
 						self.errors[maxerrn2]=0.0
+
+						# maxerrn2=self.FindMatchPoint(maxerrn)
+						# self.errors[maxerrn]=0.0
+						# self.errors[maxerrn2]=0.0
+
 						self.centers[i, :]=sum(self.x.take((maxerrn,maxerrn2),axis=0))/2;
 						self.partition_groups[maxerrn]=i+1
 						self.partition_groups[maxerrn2]=i+1
@@ -254,7 +295,7 @@ class KPlaneObj():
 			# Instead method:
 			absnow=(np.abs(tmpy.T-(self.wts[i, :].dot(tmpx.T)).T)).T
 			for j in range(len(absnow)):
-				if (self.errors[dgindex[j]]==0.0):print absnow[j]
+				#if (self.errors[dgindex[j]]==0.0):print absnow[j]
 				self.errors[dgindex[j]]=absnow[j];
 		rms=self.CalcRMSArray(self.errors);
 		return rms;
@@ -360,7 +401,7 @@ if (__name__=="__main__"):
 		# create Kplane object
 		kp=KPlaneObj();
 		# Initialize data by file and set up program
-		kp.initializeByFile("data.txt",num_group=8,regroup=True,randomgroup=False,print_in=False);
+		kp.initializeByFile("data.txt",num_group=5,regroup=True,randomgroup=True,print_in=False);
 		# Setup parameters. PS: initial will reset all default parameters, 
 		# you have to set them after initialization if you don't want to use default. 
 		# Default: klamda=0.001, rlamda=500,rmslimit=0.0001
