@@ -32,14 +32,27 @@ method=4;
 class SVM_Data:
 	# Contain the datas and process method. 
 	
+	# class id sets
 	classid=[]
+	# data in each class (dict)
 	classdata={}
+	# data in training set (dict)
 	train={}
+	# data in validation set (dict)
 	valid={}
+	# number of set for output
+	nset=1
+	# training set radio
+	tradio=0.8
+	# totoal number of data
+	ndata=0
+	# output data number of each set
+	nout=0
 	
 	def __init__(self):
 		pass
 	
+	# clear all the data
 	def clear(self):
 		del self.classid[:];
 		self.classdata.clear()
@@ -76,7 +89,7 @@ class SVM_Data:
 	def readdata(self,filename,svm=False, reset=True, sep=""):
 		# Default to clear all data
 		if reset: self.clear()
-		
+		ndata=0
 		fr=open(filename)
 		for line in fr:
 			tmp=[]
@@ -88,13 +101,17 @@ class SVM_Data:
 			if (len(tmp)>1):
 				classNum=tmp[0]
 				if (classNum.isdigit()):
+					 ndata+=1
 					if (classNum in self.classdata):
 						self.classdata[classNum].append(tmp[1:]);
 					else:
 						self.classdata[classNum]=[tmp[1:]];
 						self.classid.append(classNum);
-												
-	def writesvmdata(self, filename):
+		self.ndata=ndata
+		self.nout=ndata
+	
+	# write out all the data to a file in svm format							
+	def writeSVMdata(self, filename):
 		fw=open(filename,'w');
 		for i in self.classid:
 			for data in self.classdata[i]:
@@ -106,8 +123,8 @@ class SVM_Data:
 				fw.write('\n')
 		fw.close()
 	
-	# Can read by Excel :)
-	def writecsvfile(self, filename):
+	# Output the data. Can read by Excel :)
+	def writeCSVfile(self, filename):
 		fw=open(filename,'w');
 		for i in self.classid:
 			for data in self.classdata[i]:
@@ -116,11 +133,10 @@ class SVM_Data:
 					fw.write(","+str(item));
 				fw.write('\n')
 		fw.close()
-				
-					
-		
-		
-				
+
+	# Generate write list for training/valid set
+	
+
 ## Only retain class number is digit
 ## data here file handle or a list contains all lines
 def filterdata(data):
