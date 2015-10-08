@@ -2,8 +2,8 @@
 # -*- coding: utf8 -*-
 
 '''
-Author: Hom, Date: 2015.8.22
-To pre-process SVM input to training set and validation set.
+Author: Hom, Date: 2015.8.22, Update: 2015.10.8
+To pre-process SVM input for training set and validation set.
 User can set the training set radio, defaul is 0.8
 User can also assign the output sets number, defalut is 1
 Usage: python SVM_trainvalid.py input.txt [outsets trainingradio] 
@@ -30,45 +30,107 @@ method=4;
 ## Data is all the lines in list.
 
 class SVM_Data:
+	# Contain the datas and process method. 
+	
 	classid=[]
 	classdata={}
-	traindata={}
-	validdata={}
+	train={}
+	valid={}
 	
-	def __init__():
+	def __init__(self):
 		pass
 	
-	## Only retain class number is digit
-	## data here file handle or a list contains all lines
-	def filterdata(self,data):
-		fdata=[];
-		for line in data:
-			classNum=line.strip().split()[0];
-			if (classNum.isdigit()):
-				fdata.append(line);
-		return fdata;
+	def clear(self):
+		del self.classid[:];
+		self.classdata.clear()
+		self.train.clear();
+		self.valid.clear();
+	
+	# reset train and valid data set
+	def resetTV(self):
+		self.train.clear()
+		self.valid.clear()
+	
+	# Perceive SVM data line
+	def PerceiveSVMline(self,line):
+		tmp=line.strip().split()
+		if (len(tmp)>1):
+			data=[tmp[0]]
+			for item in tmp[1:]:
+				p=item.split(':')
+				idx=int(p[0]);
+				ld=len(data)
+				if (idx==ld):
+					data.append(p[1])
+				# svm can 1:1 5:3 10:2, other 0
+				elif (idx>ld):
+					data=data+["0"]*(idx-ld)+p[1]
+				# should never happen in normal case
+				else : data[idx]=p[1]
+			return data
+		else: return []
 	
 	# input filename 
 	# Whether svm input data
 	# seperator for the data in line
-	def readdata(self,filename,svm=False, sep=""):
+	def readdata(self,filename,svm=False, reset=True, sep=""):
+		# Default to clear all data
+		if reset: self.clear()
+		
 		fr=open(filename)
 		for line in fr:
-			tmp=line.strip().split(sep)
+			tmp=[]
+			# seperate the data in line
+			if (svm): tmp=self.PerceiveSVMline(line)
+			else:	tmp=line.strip().split(sep)
+			
 			#class name + data
 			if (len(tmp)>1):
 				classNum=tmp[0]
 				if (classNum.isdigit()):
 					if (classNum in self.classdata):
-						self.classdata.[classNum].append(line);
+						self.classdata[classNum].append(tmp[1:]);
+					else:
+						self.classdata[classNum]=[tmp[1:]];
+						self.classid.append(classNum);
+												
+	def writesvmdata(self, filename):
+		fw=open(filename,'w');
+		for i in self.classid:
+			for data in self.classdata[i]:
+				fw.write(str(i));
+				index=1
+				for item in data:
+					fw.write(" "+str(index)+":"+str(item))
+					index+=1;
+				fw.write('\n')
+		fw.close()
+	
+	# Can read by Excel :)
+	def writecsvfile(self, filename):
+		fw=open(filename,'w');
+		for i in self.classid:
+			for data in self.classdata[i]:
+				fw.write(str(i));
+				for item in data:
+					fw.write(","+str(item));
+				fw.write('\n')
+		fw.close()
+				
 					
+		
+		
 				
-			
+## Only retain class number is digit
+## data here file handle or a list contains all lines
+def filterdata(data):
+	fdata=[];
+	for line in data:
+		classNum=line.strip().split()[0];
+		if (classNum.isdigit()):
+			fdata.append(line);
+	return fdata;
 				
-
-
-
-
 ## Analyse and classify the data
 ## Return: [ Class numbers in list , classified lines in dict ] 
 def countclass(data):
