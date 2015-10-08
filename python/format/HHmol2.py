@@ -5,121 +5,130 @@ Created on 2015-10-05
 @author: Zhixiong Zhao
 """
 
-from copy import deepcopy
-import os
-import math
+import __init__
+from HHFormat import *
+import molecule.HHMolecule 
+import molecule.HHAtom
+import molecule.HHResidue
+import molecule.HHBond
+import geometry.HHPoint
 
-class Point:
-    x=99999.0
-    y=99999.0
-    z=99999.0    
-    def __init__ (self, x, y ,z):
-        self.x = x
-        self.y = y
-        self.z = z
-        
-    def coors(self):
-        coor=(self.x,self.y,self.z)
-        return coor
+Mol=molecule.HHMolecule.Molecule
+Atom=molecule.HHAtom.Atom
+Res=molecule.HHResidue.Residue
+Bond=molecule.HHBond.Bond
+Point=geometry.HHPoint.Point
 
-class Atom:
-    def __init__(self):
-        self.name=''
-        self.element=''        
-        self.resname=''
-        self.resid=0
-        self.chain=''
-        self.coordinates = Point(99999, 99999, 99999)
-        self.x=self.coordinates.coors()[0]
-        self.y=self.coordinates.coors()[1]
-        self.z=self.coordinates.coors()[2]
-        self.undo_coordinates = Point(99999, 99999, 99999)
-        self.line=""
-        self.PDBIndex = ""
-        self.MOL2Index =""
-        self.type=''
-        self.charge=''
-        self.IndeciesOfAtomsConnecting=[]
-        self.in_ring=False
+class MOL2(FileFormator):
+    extension=['mol2'];
 
-    def ReadMOL2Line(self, Line):
-        self.line = Line
-        items=Line.split()
-        self.MOL2Index = items[0]
-        self.atomname = items[1]
-        self.chain = ''
-        self.coordinates = Point(float(items[2]), float(items[3]), float(items[4]))
-        self.type=items[5]
-        self.element=self.type[0:2].strip('.')
-        if len(items)==9:
-            self.resid = int(items[6])
-            self.resname = items[7]
-            self.charge = items[8]
-
-    def CreateMOL2Line(self, mol2=MOL2()):
-        if mol2.len_atom==0:
-            len_atom=4
-            len_resid=3
-            len_resname=6
-        else:
-            len_atom=mol2.len_atom
-            len_resid=mol2.len_resid
-            len_resname=mol2.len_resid
-        output=self.MOL2Index.rjust(len_atom)+ ' ' +self.atomname.ljust(5)
-        output=output+("%.3f" % self.coordinates.x).rjust(10) + ("%.4f" % self.coordinates.y).rjust(11)+ ("%.4f" % self.coordinates.z).rjust(11)+ ' '
-        output=output+self.type.ljust(6)+str(self.resid).rjust(len_resid)+ ' ' + self.resname.ljust(len_resname)+ self.charge.rjust(9)+ os.linesep
+    def CreateAtomLine(self, atom, lenatom=4, lenres=3):
+        output=atom.index.rjust(lenatom)+" "+atom.name.ljust(5)
+        output+=("%.4f" % atom.coordinates.x).rjust(11) + ("%.4f" % atom.coordinates.y).rjust(11)+ ("%.4f" % atom.coordinates.z).rjust(11)+ ' '
+        output+=atom.atype.ljust(6)+str(atom.resid).rjust(lenres)+ ' ' + atom.resname.ljust(6)+ atom.pcharge.rjust(9)+ os.linesep
         return output
-        
 
-class MOL2:
-    def __init__(self):
-        self.AllAtoms={}
-        self.Conects=Conect()
-        self.heavy_atoms_Conects=Conect()
-        self.bonds={}
-        len_atom=0
-        len_resid=0
-        len_resname=0
-        
-    def LoadMOL2(self, FileName):
-        autoindex = 1
-        self.__init__()
-        # Now load the file into a list
-        file = open(FileName,"r")
-        lines = file.readlines()
-        file.close()
-        self.filename=FileName
-        conects=[]
-        for t in range(0,len(lines)):
-            line=lines[t]
-            if len(line) >= 7:
-                if line[0:4]=="ATOM" or line[0:6]=="HETATM": # Load atom data (coordinates, etc.)
-                    TempAtom = Atom()
-                    TempAtom.ReadPDBLine(line)
-                    self.AllAtoms[autoindex] = TempAtom # because points files have no indecies
-                    autoindex = autoindex + 1
-            items=line.split()
-            if items[0]=='CONECT':
-                conects.append(items[1:])
-        self.Conects.conects=conects[:]
-        self.Conects.restart()
-        self.Conects.find_ring_atoms()
-        heavyconects=[]
-        hydrogens={}
-        for i in self.Conects.conects:
-            for j in self.AllAtoms:
-                if i[0]==self.AllAtoms[j].PDBIndex:
-                    self.Conects.atoms_index[i[0]]=j
-                    if self.AllAtoms[j].element!='H':
-                        heavyconects.append(i)
-                        self.heavy_atoms_Conects.atoms_index[i[0]]=j
-                    elif self.AllAtoms[j].element=='H':
-                        hydrogens[i[0]]=j
-        copy_heavy=deepcopy(heavyconects)
-        for i in copy_heavy:
-            for j in i:
-                if j in hydrogens:
-                    heavyconects[copy_heavy.index(i)].remove(j)
-        self.heavy_atoms_Conects.conects=heavyconects[:]
-        self.heavy_atoms_Conects.restart()
-        self.heavy_atoms_Conects.find_ring_atoms()
+    def CreateBondline(bond,lenbond=4):
+        output=bond.index.rjust(lenbond)+" "+bond.idx_bgn.rjust(lenbond)+" "+\
+                bond.idx_end.rjust(lenbond)+"  "+bond.btype.lower().ljust(lenbond)+ os.linesep
+        return output
+
+    def WriteObj(self,obj):
+        if (isinstance(obj,Atom)):
+            self.write(CreateAtomLine(obj))
+        elif(isinstance(obj,Res) or isinstance(obj,Mol)):
+            for atom in obj.atoms:
+               self.write(CreateAtomLine(atom))
+        elif(isinstance(obj,Bond)):
+            self.write(CreateBondline(obj));
+        else:
+            self.write(str(obj));
+
+    def ReadAtomLine(self, Line):
+        items=Line.split()
+        atom=Atom()
+        atom.index = int(items[0])
+        atom.atomid = int(items[0])
+        atom.name = items[1]
+        atom.coordinates = Point(float(items[2]), float(items[3]), float(items[4]))
+        atom.atype=items[5]
+        atom.element_name=atom.atype[0:2].strip('.').strip()
+        if len(items)==9:
+            atom.resid = int(items[6])
+            atom.resname = items[7]
+            atom.charge = items[8]
+        return atom;
+
+    def ReadBondLine(self, Line):
+        items=Line.split()
+        bond=Bond()
+        bond.index = int(items[0])
+        bond.idx_bgn = int(items[1])
+        bond.idx_bgn = int(items[2])
+        bond.btype = items[3]
+        return bond;
+
+    def WriteMolFile(self,mol,filename):
+        self.open(filename,'w');
+        self.write("@<TRIPOS>MOLECULE\n")
+        self.write(mol.name+'\n')
+        self.write("%5d %5d %5d %5d %5d \n", mol.GetNumAtom(), mol.GetNumBond(), mol.GetNumFrag(), 0, 0);
+
+        self.write("@<TRIPOS>ATOM\n");
+        self.WriteObj(mol);
+        self.write("@<TRIPOS>BOND\n");
+
+    def ReadMolFile(self, filename):
+        self.open(filename,'r');
+        findmol=False;
+        findatom=False;
+        findbond=False;
+        nextmol=False;
+        mols=[]
+        mol=None
+        for line in self.handle:
+            if (line[:17] == "@<TRIPOS>MOLECULE"):
+                findmol=True;
+                findatom=False;
+                findbond=False;
+                if (nextmol):
+                    mols.append(mol)
+                    nextmol=False;
+                mol=Mol()
+                continue;
+            if (line[:13] == "@<TRIPOS>ATOM"):
+                findatom=True;
+                findmol=False;
+                nextmol=True;
+                continue;
+            if (line[:13] == "@<TRIPOS>BOND"):
+                findatom=False;
+                findbond=True;
+                continue;
+            if (findbond and line[:9]=="@<TRIPOS>"):
+                findbond=False;
+                continue;
+            if (findatom):
+                atom=self.ReadAtomLine(line);
+                atom.mol=mol;
+                mol.atoms.append();
+            if (findbond):
+                bond=self.ReadBondLine(line);
+                bond.mol=mol;
+                bond.SetAtomsFromIdx()
+                mol.bonds.append(bond);
+        mols.append(mol);
+        self.close();
+        if (len(mols)==1):return mols[0];
+        elif (len(mols)>1):return mols;
+        elif (len(mols)==0):return None;
+
+if __name__=="__main__":
+    mr=MOL2()
+    a=mr.ReadMolFile("test.mol2");
+    print a
+    print a.atoms[0]
+
+
+
+

@@ -1,28 +1,39 @@
 import __init__
 from geometry.HHPoint import *
-import HHElement
+from HHElement import *
 
-class Atom(HHElement.Element):
-    defaults = {
-        'name'      :   '',
-        'resname'   :   '',
-    }
+class Atom(Element):
+
+    name=''
+    atype=''
+    index=0
+    atomid=0
+    resname=''
+    resid=0
+    res=None
+    mol=None
+    chain=None
+    isring=False
+    isaromatic=False
+    coordinates = Point(99999, 99999, 99999)
+    x=coordinates.coors()[0]
+    y=coordinates.coors()[1]
+    z=coordinates.coors()[2]
+    fcharge=0.0
+    pcharge=0.0
+
+    #element_name
+    #element_valid
 
     def __init__(self):
-        HHElement.Element.__init__(self,"")
-        self.name=''
-        self.resname=''
-        self.resid=0
-        self.chain=''
-        self.coordinates = Point(99999, 99999, 99999)
-        self.x=self.coordinates.coors()[0]
-        self.y=self.coordinates.coors()[1]
-        self.z=self.coordinates.coors()[2]
+        Element.__init__(self,"")
         self.undo_coordinates = Point(99999, 99999, 99999)
         self.line=""
         self.PDBIndex = ""
         self.IndeciesOfAtomsConnecting=[]
-        self.ring=False
+    
+    def __str__(self):
+        return self.CreatePDBLine()
 		
     def atom_radius(self):
         element=self.element.upper()
@@ -46,7 +57,7 @@ class Atom(HHElement.Element):
         newatom = atom()
         newatom.chain = self.chain
         newatom.resid = self.resid
-        newatom.atomname = self.atomname
+        newatom.name = self.name
         newatom.resname = self.resname
         newatom.coordinates = self.coordinates.CopyOf()
         newatom.undo_coordinates = self.undo_coordinates.CopyOf()
@@ -61,26 +72,26 @@ class Atom(HHElement.Element):
     # Requires: A string containing the PDB line
     def ReadPDBLine(self, Line):
         self.line = Line
-        self.atomname = Line[11:16].strip()
+        self.name = Line[11:16].strip()
         self.chain = Line[21:22]
         if Line[22:26].strip() != "":
             self.resid = int(Line[22:26])
         else:
             self.resid = 0
         
-        if len(self.atomname)==1: # redo using rjust
-            self.atomname = self.atomname + "  "
-        elif len(self.atomname)==2:
-            self.atomname = self.atomname + " "
-        elif len(self.atomname)==3:
-            self.atomname = self.atomname + " " # This line is necessary for babel to work, though many PDBs in the PDB would have this line commented out
+        if len(self.name)==1: # redo using rjust
+            self.name = self.name + "  "
+        elif len(self.name)==2:
+            self.name = self.name + " "
+        elif len(self.name)==3:
+            self.name = self.name + " " # This line is necessary for babel to work, though many PDBs in the PDB would have this line commented out
         
         self.coordinates = point(float(Line[30:38]), float(Line[38:46]), float(Line[46:54]))
         
         if len(Line) >= 79:
             self.element = Line[76:79].strip().upper() # element specified explicitly at end of life
         elif self.element == "": # try to guess at element from name
-            two_letters = self.atomname[0:2].strip().upper()
+            two_letters = self.name[0:2].strip().upper()
             if two_letters=='BR':
                 self.element='BR'
             elif two_letters=='CL':
@@ -102,7 +113,7 @@ class Atom(HHElement.Element):
             elif two_letters=='ZN':
                 self.element='ZN'
             else: #So, just assume it's the first letter.
-                self.element = self.atomname[0:1].strip().upper()
+                self.element = self.name[0:1].strip().upper()
                 
         # Any number needs to be removed from the element name
         self.element = self.element.replace('0','')
@@ -123,15 +134,15 @@ class Atom(HHElement.Element):
     # Returns: PDB String
     def CreatePDBLine(self):
 
-        #if len(self.atomname) > 1: self.atomname = self.atomname[:1].upper() + self.atomname[1:].lower()
+        #if len(self.name) > 1: self.name = self.name[:1].upper() + self.name[1:].lower()
 
         output = "ATOM "
-        #output = output + str(index).rjust(6) + self.atomname.rjust(5) + self.residue.rjust(4)
-        output = output + self.PDBIndex.rjust(6) + self.atomname.rjust(5) + self.resname.rjust(4)
+        #output = output + str(index).rjust(6) + self.name.rjust(5) + self.residue.rjust(4)
+        output = output + str(self.index).rjust(6) + self.name.rjust(5) + self.resname.rjust(4)
         output = output + ("%.3f" % self.coordinates.x).rjust(18)
         output = output + ("%.3f" % self.coordinates.y).rjust(8)
         output = output + ("%.3f" % self.coordinates.z).rjust(8)
-        output = output + self.element.rjust(24) # + "   " + str(uniqueID) #This last part must be removed
+        output = output + self.element_name.rjust(24) # + "   " + str(uniqueID) #This last part must be removed
         return output
 
     # Sets the undo point for later undoing
@@ -141,3 +152,5 @@ class Atom(HHElement.Element):
     # Resets coordinate values after translations or rotations ("Undo")
     def Undo(self):
         self.coordinates = self.undo_coordinates.CopyOf()
+
+

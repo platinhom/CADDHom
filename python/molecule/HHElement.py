@@ -14,16 +14,46 @@ class Element:
 		assert isinstance(element_name,str);
 		self.element_name=element_name;
 		self.element_valid=self.ValidateElement();
-	def ValidateElement(self):
-		return (self.element_name.upper() in atomic_mass)
+
+	def ValidateElement(self,name=None):
+		if (name):
+			return (name in atomic_mass)
+		else:
+			return (self.element_name.upper() in atomic_mass )
+
 	def GetMass(self):
 		return atomic_mass[self.element_name.upper()]
+
 	def GetElementNumber(self):
 		return atomic_number[self.element_name.upper()]
 
+    # Deduce Element from name
+    def DeduceElementFromName(self,name=""):
+        name=name.strip();
+        uname=name.upper();
+        if (len(name)==1 and uname in atomic_name ):
+            return uname;
+        elif (len(name)>=2):
+        	uname2=uname[:2]
+        	if (uname2=="CA" and name[:2]=="CA" || 
+        		uname2=="CO" and name[:2]=="CO"):
+        		return "C"
+        	if (uname2 in atomic_name):
+        		return (atomic_name[uname2])
+        	elif (uname2[0] in atomic_name):
+        		return uname2[0];
+        raise ValueError("Can't deduce element from name! : "+name);
 
-# Use to validate the element name
-# No: X, Du, R and so on.
+
+# Use upper case to validate the element name
+# Only normal elements Include X, Du
+# No R and so on.
+
+atomic_name = {
+	'H':'H','C':'C','N':'N','O':'O','F':'F','P':'P','S':'S','B':'B','I':'I','K':'K','X':'X','DU':'Du','CL':'Cl','BR':'Br',
+	'NA':'Na','SI':'Si','CA':'Ca','MG':'Mg','AL':'Al','TI':'Ti','FE':'Fe','CU':'Cu','NI':'Ni'
+}
+
 atomic_mass = {
 	'H'	 :	 1.00794,
 	'He' :	 4.002602,

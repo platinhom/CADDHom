@@ -1,5 +1,5 @@
 import __init__
-import molecule.HOMatom
+import HHAtom
 
 class Residue:
     def __init__(self):

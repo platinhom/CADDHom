@@ -1,4 +1,5 @@
 #import numpy as np
+import __init__
 import math
 
 print "I'm in point"
