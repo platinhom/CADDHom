@@ -1,12 +1,16 @@
 import __init__
-from geometry.HOMpoint import *
+from geometry.HHPoint import *
+import HHElement
 
-print "I'm in atom"
+class Atom(HHElement.Element):
+    defaults = {
+        'name'      :   '',
+        'resname'   :   '',
+    }
 
-class Atom:
     def __init__(self):
+        HHElement.Element.__init__(self,"")
         self.name=''
-        self.element=''
         self.resname=''
         self.resid=0
         self.chain=''
