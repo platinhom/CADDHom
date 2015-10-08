@@ -43,6 +43,10 @@ class KPlaneObj():
 	def CheckData(self,data=True,group=True):
 		# Check input data and convert them to valid data type
 		if (data):
+			if (not isinstance(self.x,np.ndarray)):
+				self.x=np.array(self.x);
+			if (not isinstance(self.y,np.ndarray)):
+				self.y=np.array(self.y);
 			if (self.x.ndim==1):
 				self.x=self.x.T
 				self.dlen=self.x.size;
@@ -82,14 +86,20 @@ class KPlaneObj():
 		# May need further dgroup assignment
 
 	def SetGroupData(self,dgroup):
-		self.dgroup=dgroup;
+		if (isinstance(dgroup,np.ndarray)):
+			self.dgroup=dgroup;
+		else:
+			self.dgroup=np.array(dgroup);
+		if (self.dgroup.size !=self.dlen):
+			raise ValueError,"amount of group number not equal to amount of data!"
+		if (self.dgroup.ndim==1):
+			self.dgroup.resize((self.dlen,1));
 
 	### Grouping function can use only after initialize
 	#   Grouping Based on sequence
 	def AutoGroup(self):
 		num_group=self.num_group
 		dlen=self.dlen
-
 		for k in range(0,num_group-1):
 			self.dgroup[k*np.floor(dlen/num_group):(k+1)*np.floor(dlen/num_group)]=k+1;
 		self.dgroup[(num_group-1)*np.floor(dlen/num_group):dlen]=num_group;
@@ -153,20 +163,19 @@ class KPlaneObj():
 	def initializeByFileWithGroup(self,filename='data.txt',num_group=1,regroup=True,print_in=False):
 		#load data from file
 		try:
-			data=np.loadtxt(filename) #dlen(m) data * plen(n) para + 1 y + 1 group
-			dlen=data.shape[0]
-			plen=data.shape[1]
+			data=np.loadtxt(filename); #dlen(m) data * plen(n) para + 1 y + 1 group
+			dlen=data.shape[0];
+			plen=data.shape[1];
 			assert (dlen>1 and plen>2)
 			gmat=data[:,0];
 			ymat=data[:,1];
-			xmat=data[:,2:]
+			xmat=data[:,2:];
 			# Use random group method (True here) to initial may be faster
 			self.initializeByData(xmat,ymat,num_group,regroup,True,print_in)
 			self.SetGroupData(gmat);
 		except:
-			traceback.print_exc()
-			exit()
-
+			traceback.print_exc();
+			exit();
 
 	def LeastSqaures(self,x,y,rlamda=500):
 		try:
@@ -199,6 +208,7 @@ class KPlaneObj():
 	def CalcRMSArray(self,arr):
 		return np.sqrt((arr.T.dot(arr)).ravel()[0]/arr.shape[0])
 
+	#on test
 	def FindMatchPoint(self,num):
 		err1=self.errors[num];
 		gn1=self.dgroup[num];
@@ -334,10 +344,10 @@ class KPlaneObj():
 
 		if self.print_in: print "Starting RMS: " + str(rms1)
 
-		minrms=9999.0
-		minrmscount=0
-		minstartcount=0
-		oldminrms=9999.0
+		minrms=9999.0;
+		minrmscount=0;
+		minstartcount=0;
+		oldminrms=9999.0;
 		# Update the partition and regressor via EM algorithm
 		while( np.abs(rms1-rms2)>self.rmslimit or rms1<rms2 or \
 			(np.abs(rms1-rms2)<=self.rmslimit and self.regroup )):
