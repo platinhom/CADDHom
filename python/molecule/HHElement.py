@@ -14,9 +14,6 @@ class Element:
 		assert isinstance(element_name,str);
 		self.element_name=element_name;
 		self.element_valid=self.ValidateElement();
-	def has(self,attr):
-		return self.__dict__.has_key(attr)
-
 	def ValidateElement(self):
 		return (self.element_name.upper() in atomic_mass)
 	def GetMass(self):
