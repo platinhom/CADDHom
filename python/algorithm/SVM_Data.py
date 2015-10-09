@@ -23,7 +23,6 @@ newline=False;
 # 1. Output many sets with shuffle list (Origin and All data)
 # 2. Output many sets with random lines in a class(Possible repeated lines)
 # 3. Output many sets with random lines in all classes (probability depends on origin data)
-# 3. Output many sets with random lines in all classes (probability depends on origin data)
 # 4. Output many sets with random lines in all classes (probability of each class is equal)
 method=4;
 
@@ -31,7 +30,16 @@ method=4;
 
 class SVM_Data:
 	# Contain the datas and process method. 
-	
+	# ! setParameter function to set the Output set number and Training set radio
+	# ! readata function to read data into object
+	# ! RandomTrainData function to randomize and initial train set/valid set according to self.tradio
+	# ! writeTV2SVMfile function:
+	#    Write out train/valid sets (multi-outset)
+	# ! writeTV2SVMfileRandom function: 
+	#    Write out train/valid sets (multi-outset) based on randomly choose data from a class
+	#    Can expand total number of data to self.ndata.
+	# ! writeTV2SVMfileRandom: 
+
 	# class id sets
 	classid=[]
 	# data in each class (dict)
@@ -63,6 +71,19 @@ class SVM_Data:
 	def resetTV(self):
 		self.train.clear()
 		self.valid.clear()
+
+	# Recommend to use to set parameter before obtain train/valid set
+	def setParameter(self,nset=1,trainingradio=0.8):
+		if (nset<1):
+			print "Output set number should >1! Now: "+str(nset);
+			print "Reset Output set number to 1"
+			nset=1;
+		self.nset=nset;
+		if (trainingradio>1 or trainingradio<0):
+			print "Training set radio should [0,1]! Now: "+str(trainingradio);
+			print "Reset Training set radio to 0.8"
+			trainingradio=0.8;
+		self.trainingradio=trainingradio;
 	
 	# Perceive SVM data line
 	def PerceiveSVMline(self,line):
@@ -82,11 +103,11 @@ class SVM_Data:
 				else : data[idx]=p[1]
 			return data
 		else: return []
-	
+
 	# input filename 
 	# Whether svm input data
 	# seperator for the data in line
-	def readdata(self,filename,svm=False, reset=True, sep=""):
+	def readdata(self,filename,svmformat=False, reset=True, sep=""):
 		# Default to clear all data
 		if reset: self.clear()
 		ndata=0
@@ -94,7 +115,7 @@ class SVM_Data:
 		for line in fr:
 			tmp=[]
 			# seperate the data in line
-			if (svm): tmp=self.PerceiveSVMline(line)
+			if (svmformat): tmp=self.PerceiveSVMline(line)
 			else:	tmp=line.strip().split(sep)
 			
 			#class name + data
@@ -109,33 +130,99 @@ class SVM_Data:
 						self.classid.append(classNum);
 		self.ndata=ndata
 		self.nout=ndata
+
+	#string a data without class id (save in list) to given format
+	#No blank in start/end of string!
+	def strdata(self,data, svmformat=True,sep=" "):
+		if (len(data)==0):return "";
+		if (svmformat):
+			index=1;
+			out=str(data[0]);
+			for item in data[1:]:
+				out+=" "+str(index)+":"+str(item)
+				index+=1;
+			return out
+		else:
+			return sep.join(data)
 	
-	# write out all the data to a file in svm format							
-	def writeSVMdata(self, filename):
+	# write out all the data to a file in svm format	
+	# Default also write out the class id, can set off						
+	def writeAll2SVMfile(self, filename,writeClassID=True):
 		fw=open(filename,'w');
 		for i in self.classid:
 			for data in self.classdata[i]:
-				fw.write(str(i));
-				index=1
-				for item in data:
-					fw.write(" "+str(index)+":"+str(item))
-					index+=1;
-				fw.write('\n')
-		fw.close()
-	
-	# Output the data. Can read by Excel :)
-	def writeCSVfile(self, filename):
-		fw=open(filename,'w');
-		for i in self.classid:
-			for data in self.classdata[i]:
-				fw.write(str(i));
-				for item in data:
-					fw.write(","+str(item));
+				if writeClassID: fw.write(str(int(i)+" ");
+				fw.write(strdata(data,svmformat=True));
 				fw.write('\n')
 		fw.close()
 
-	# Generate write list for training/valid set
-	
+	# Output all the data with classid. Can read by Excel :)
+	def writeAll2CSVfile(self, filename,writeClassID=True):
+		fw=open(filename,'w');
+		for i in self.classid:
+			for data in self.classdata[i]:
+				if writeClassID: fw.write(str(int(i))+",");
+				fw.write(strdata(data,svmformat=False,sep=','));
+				fw.write('\n')
+		fw.close()
+
+	# Output all the data with classid. Sep=" "
+	def writeAll2PRNfile(self, filename,writeClassID=True):
+		fw=open(filename,'w');
+		for i in self.classid:
+			for data in self.classdata[i]:
+				if writeClassID: fw.write(str(int(i))+" ");
+				fw.write(strdata(data,svmformat=False,sep=' '));
+				fw.write('\n')
+		fw.close()
+
+	# Reset and Randomize the train set and valid set element
+	def RandomTrainData(self):
+		self.resetTV();
+		# Just check the parameter
+		setParameter(self,nset=self.nset,trainingradio=self.tradio)
+		for c in self.classid:
+			classNow=self.classdata[c];
+			count=len(classNow);
+			# training set number (tradio: trainsing set radio)
+			Ntrain=int(count*self.tradio);
+			self.train[c]=[]
+			self.valid[c]=[]
+			# Get a random list
+			shufflelist=range(count);
+			random.shuffle(shufflelist);
+			# get the number of data being used in set
+			tlist=shufflelist[:Ntrain];
+			tlist.sort()
+			vlist=shufflelist[Ntrain:];
+			vlist.sort()
+			for i in tlist:
+				self.train[c].append(classNow[i]);
+			for i in vlist:
+				self.valid[c].append(classNow[i]);	
+
+	# write out data in training/valid set to corresponding file in svm format	
+	# if outset=0 (not given), use the nset attr. in obj.
+	# Note: Don't expand the set or randomly select data! 
+	def writeTV2SVMfile(self, filename, outputsets=0):
+		fnamelist=os.path.splitext(fname);
+		if (outputsets==0): outputsets=self.nset;
+
+		for outset in range(outputsets):
+			trainfname=fnamelist[0]+"_train_"+str(outset+1)+fnamelist[1];
+			validfname=fnamelist[0]+"_valid_"+str(outset+1)+fnamelist[1];
+			ftrain=open(trainfname,'w');
+			fvalid=open(validfname,'w');
+			for i in self.classid:
+				for data in self.train[i]:
+					ftrain.write(str(int(i))+strdata(data,svmformat=True));
+					ftrain.write('\n')
+				for data in self.valid[i]:
+					fvalid.write(str(int(i))+strdata(data,svmformat=True));
+					fvalid.write('\n')					
+			ftrain.close()
+			fvalid.close()
+
 
 ## Only retain class number is digit
 ## data here file handle or a list contains all lines
@@ -218,6 +305,7 @@ def writeRandomTrainValid(classlist, classdict, fname='data.txt',outputsets=1, t
 		ftrain.close();
 		fvalid.close();
 
+# Get all datas first and random get data to train set/valid set
 def writeRandomAllTrainValid(fdata, fname='data.txt',outputsets=1, trainsetradio=0.8, newline=False):
 	fnamelist=os.path.splitext(fname);
 	count=len(fdata);
@@ -287,7 +375,8 @@ def multigongbei(nums):
 	return value;
 	#return i0*i1*i2.../multigongyue(nums)^n  
 
-
+# random get a class
+# then random get a data from a class
 def writeRandomEqualAllTrainValid(classlist, classdict, fname='data.txt',outputsets=1, trainsetradio=0.8, newline=False):
 	fnamelist=os.path.splitext(fname);
 	numlist=[];

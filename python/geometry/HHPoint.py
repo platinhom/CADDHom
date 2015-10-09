@@ -1,17 +1,14 @@
-#import numpy as np
 import __init__
 import math
-
-print "I'm in point"
+import numpy as np
 
 class Point:
-    x=99999.0
-    y=99999.0
-    z=99999.0    
-    def __init__ (self, x, y ,z):
-        self.x = x
-        self.y = y
-        self.z = z
+    '''Point at 3D. Some method for it. '''
+
+    def __init__ (self, x=0.0, y=0.0 ,z=0.0):
+        self.x=x
+        self.y=y
+        self.z=z
         
     def coors(self):
         coor=(self.x,self.y,self.z)
