@@ -374,7 +374,6 @@ class KPlaneObj():
 
 			if self.print_in: print "Grouped state: "+ str(dgroup.T)
 			if self.print_in: print "RMS now: "+str(rms2)
-			print "RMS&Group: "+str(rms2)+ str(dgroup.T)
 
 			if (rms2<minrms):
 				if (minrms-rms2<self.rmslimit):
@@ -382,7 +381,7 @@ class KPlaneObj():
 				else: minrmscount=1;
 				minrms=rms2;
 				minstartcount=0;
-				print "New Min RMS: "+str(minrms)
+				if self.print_in: print "New Min RMS: "+str(minrms)
 			if (rms2-minrms<self.rmslimit and rms2>=minrms):
 				minrmscount+=1;
 				#if (minrmscount>10):
@@ -393,7 +392,7 @@ class KPlaneObj():
 			if (minstartcount>500):
 				oldminrms=minrms;
 				minrms=rms2;
-				print "Best Min RMS before changing MINRMS: "+str(oldminrms)
+				if self.print_in: print "Best Min RMS before changing MINRMS: "+str(oldminrms)
 				minstartcount=0;
 			minstartcount+=1;
 
@@ -411,13 +410,16 @@ if (__name__=="__main__"):
 		# create Kplane object
 		kp=KPlaneObj();
 		# Initialize data by file and set up program
-		kp.initializeByFile("data.txt",num_group=5,regroup=True,randomgroup=True,print_in=False);
+		kp.initializeByFile("data.txt",num_group=8,regroup=False,randomgroup=False,print_in=False);
 		# Setup parameters. PS: initial will reset all default parameters, 
 		# you have to set them after initialization if you don't want to use default. 
 		# Default: klamda=0.001, rlamda=500,rmslimit=0.0001
-		kp.SetAllParameters(klamda=0,rlamda=500, rmslimit=0.0001);
+		kp.SetAllParameters(klamda=0.0001,rlamda=500, rmslimit=0.0001);
 		#Calculate the partitioning by k-plane regression
 		rms, coef, partition_groups = kp.kplane();
+		print rms
+		print coef
+		print partition_groups
 
 	except:
 		traceback.print_exc()
