@@ -52,7 +52,9 @@ class MOL2(FileFormator):
         atom.name = items[1]
         atom.coordinates = Point(float(items[2]), float(items[3]), float(items[4]))
         atom.atype=items[5]
-        atom.element_name=atom.atype[0:2].strip('.').strip()
+        #sybyl type
+        #atom.element_name=atom.atype[0:2].strip('.').strip()
+        atom.element_name=atom.DeduceElementFromName(atom.name);
         if len(items)==9:
             atom.resid = int(items[6])
             atom.resname = items[7]
