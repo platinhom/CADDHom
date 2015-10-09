@@ -405,6 +405,12 @@ class KPlaneObj():
 		#print coef
 		return (rms2,coef,partition_groups);
 
+	def outnow(self,filename):
+		fnamelist=os.path.splitext(filename);
+		fdata=open(fnamelist[0]+'_'+fnamelist[1],'w')
+		fpar=open(fnamelist[0]+'_par'+fnamelist[1],'w')
+
+
 if (__name__=="__main__"):
 	try:
 		# create Kplane object
