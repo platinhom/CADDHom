@@ -65,6 +65,7 @@ def multiLeastCommon(nums):
 	#return i0*i1*i2.../multiLargestCommon(nums)^n
 
 class SVM_Data:
+	'''
 	# Contain the datas and process method. 
 	# ! setParameter function to set the Output set number and Training set radio
 	# ! readata function to read data into object
@@ -82,27 +83,39 @@ class SVM_Data:
 	# !!!   The difference is , writeTV2SVMfile output data as origin train set, 
 	# !!!   writeTV2SVMfileRandom output data randomly in a class, maybe not equal amount for each data.
 	# !!!   writeTV2SVMfileRandomTotal randomly select data from total train set and output given total data.
-
+	'''
 	# class id sets
 	classid=[]
+
 	# data in each class (dict)
 	classdata={}
+	
 	# data in training set (dict)
 	train={}
+	
 	# data in validation set (dict)
 	valid={}
+	
+	# data in test set (in list, not dict! No class id for them)
+	test=[]
+	
 	# number of set for output
 	nset=1
+	
 	# training set radio
 	tradio=0.8
+	
 	# totoal number of data
 	ndata=0
+	
 	# multi-times based on Least Common for each class
 	classLC={}
 	
 	def __init__(self):
+		'''SVM_Data object'''
 		pass
 	
+####### Basic setting function ##########
 	# clear all the data
 	def clear(self):
 		del self.classid[:];
@@ -117,6 +130,7 @@ class SVM_Data:
 
 	# Recommend to use to set parameter before obtain train/valid set
 	def setParameter(self,nset=1,trainingradio=0.8):
+		
 		if (nset<1):
 			print "Output set number should >1! Now: "+str(nset);
 			print "Reset Output set number to 1"
@@ -147,7 +161,7 @@ class SVM_Data:
 			return data
 		else: return []
 
-	# input filename 
+	# input filename, file should be classID and features. 
 	# Whether svm input data
 	# seperator for the data in line
 	def readdata(self,filename,svmformat=False, reset=True, sep=""):
@@ -172,6 +186,51 @@ class SVM_Data:
 						self.classdata[classNum]=[tmp[1:]];
 						self.classid.append(classNum);
 		self.ndata=ndata
+		fr.close()
+
+	def combineDataFile(self,fname1,fname2,outf="",sep=" "):
+		fnamelist1=os.path.splitext(fname1);
+		fnamelist2=os.path.splitext(os.path.basename(fname2));
+
+		if (outf==""):
+			outf=fnamelist1[0]+"_"+fnamelist2[0]+fnamelist1[1];
+		fr1=open(fname1);
+		fr2=open(fname2);
+		fw=open(outf,'w');
+		lines1=[]
+		lines2=[]
+		for line in fr1:
+			if (line.strip()): lines1.append(line)
+		for line in fr2:
+			if (line.strip()): lines2.append(line)
+		if (len(lines1)==len(lines2)):
+			for i in range(len(lines1)):
+				fw.write(lines1[i].strip()+sep+lines2[i]);
+		else:
+			print "Data in in file is not equal!: "+str(len(lines1))+","+str(len(lines2))
+		fr1.close()
+		fr2.close()
+		fw.close()
+
+	# Extract given column from a data file.
+	# Combine use with combineDataFile() to set a suitable input data file
+	# column list start from 1, and in list [1, 3, 5]
+	def extractData(self,fname,columnList,outf="",sep=" "):
+		fnamelist=os.path.splitext(fname);
+		if (outf==""):
+			outf=fnamelist[0]+"_extract"+fnamelist[1];
+		fr=open(fname);
+		fw=open(outf,'w');
+		for line in fr:
+			tmp=line.strip().split(sep);
+			outlist=[];
+			for i in range(len(tmp)):
+				if ((i+1) in columnList):
+					outlist.append(tmp[i]);
+			fw.write(sep.join(outlist)+"\n");
+			del outlist[:];
+		fr.close()
+		fw.close()
 
 	#string a data without class id (save in list) to given format
 	#No blank in start/end of string!
@@ -284,7 +343,7 @@ class SVM_Data:
 	#   >1(int): use LeastCommon method and each set amount multiply the value
 	# Note: No randomly selecting data when write out! 
 	def writeTV2SVMfileOrigin(self, filename, outputsets=0,LeastCommon=0):
-		fnamelist=os.path.splitext(fname);
+		fnamelist=os.path.splitext(filename);
 		if (outputsets==0): outputsets=self.nset;
 		self.CalcLeastCommon(LeastCommon);
 
@@ -310,7 +369,7 @@ class SVM_Data:
 	#   >1(int): use LeastCommon method and each set amount multiply the value
 	# Note: Data in a class is randomly selected! Recommend to expand the data amount by LC method! 
 	def writeTV2SVMfileRandom(self, filename, outputsets=0,LeastCommon=0):
-		fnamelist=os.path.splitext(fname);
+		fnamelist=os.path.splitext(filename);
 		if (outputsets==0): outputsets=self.nset;
 		self.CalcLeastCommon(LeastCommon);
 
@@ -337,7 +396,7 @@ class SVM_Data:
 	# randomClass: Whether use random class method to make class probability equal.
 	# Note: Data in a class is randomly selected!  
 	def writeTV2SVMfileRandomTotal(self, filename, outputsets=0,TotalDataNum=0,randomClass=True):
-		fnamelist=os.path.splitext(fname);
+		fnamelist=os.path.splitext(filename);
 		if (outputsets==0): outputsets=self.nset;
 		if (TotalDataNum==0): 
 			TotalDataNum=self.ndata;
@@ -381,21 +440,30 @@ class SVM_Data:
 				ftrain.write('\n')					
 			ftrain.close()
 
-	def writeTV2SVMfile(self, filename, methodID=1, outputsets=0,paramete=0):
+	# To control output train/valid set method based methodID
+	# parameter for LCM is the multiple factor; for randomTotal is the training set size.
+	def writeTV2SVMfile(self, filename, methodID=1, outputsets=0,parameter=0):
 		if (methodID>6 or methodID<1):
 			raise ValueError("Error Method ID!: "+str(methodID));
 		if (methodID==1):
 			self.writeTV2SVMfileOrigin(filename, outputsets=outputsets,LeastCommon=0);
 		elif (methodID==2):
-			self.writeTV2SVMfileOrigin(filename, outputsets=outputsets,LeastCommon=paramete);
+			self.writeTV2SVMfileOrigin(filename, outputsets=outputsets,LeastCommon=parameter);
 		elif (methodID==3):
 			self.writeTV2SVMfileRandom(filename, outputsets=outputsets,LeastCommon=0);
 		elif (methodID==4):
-			self.writeTV2SVMfileRandom(filename, outputsets=outputsets,LeastCommon=paramete);
+			self.writeTV2SVMfileRandom(filename, outputsets=outputsets,LeastCommon=parameter);
 		elif (methodID==5):
-			self.writeTV2SVMfileRandomTotal(filename, outputsets=outputsets,TotalDataNum=paramete,randomClass=False);
+			self.writeTV2SVMfileRandomTotal(filename, outputsets=outputsets,TotalDataNum=parameter,randomClass=False);
 		elif (methodID==6):
-			self.writeTV2SVMfileRandomTotal(filename, outputsets=outputsets,TotalDataNum=paramete,randomClass=True);
+			self.writeTV2SVMfileRandomTotal(filename, outputsets=outputsets,TotalDataNum=parameter,randomClass=True);
+
+	# To calculate the RMS. 
+	# svmout include the class number of each data in test set
+	# 
+	def CalcTestSetRMS(self,svmout, wtsout, parfile):
+		pass
+
 
 if (__name__ == '__main__'):
 
@@ -442,6 +510,6 @@ if (__name__ == '__main__'):
 	dsvm=SVM_Data();
 	dsvm.setParameter(outsets,trainradio);
 	dsvm.readdata(fname,svmformat=True, reset=True)
-	dsvm.writeTV2SVMfile(fname,methodID=methodID, outputsets=outsets,paramete=pmethod)
+	dsvm.writeTV2SVMfile(fname,methodID=methodID, outputsets=outsets,parameter=pmethod)
 	
 #end main

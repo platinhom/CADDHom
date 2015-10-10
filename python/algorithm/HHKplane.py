@@ -37,6 +37,16 @@ import numpy as np
 num_group=8;
 
 class KPlaneObj():
+	# x: x data
+	# y: y data
+	# dlen: data number
+	# plen: parameter numbers
+	# num_group: group number
+	# dgroup: group number for each data(start)
+	# partition_groups: final group number for each data
+	# errors: error for each data
+	# centers: center for each group
+	# wts: weight for each group
 	def __init__(self):
 		pass
 
@@ -48,9 +58,9 @@ class KPlaneObj():
 			if (not isinstance(self.y,np.ndarray)):
 				self.y=np.array(self.y);
 			if (self.x.ndim==1):
-				self.x=self.x.T
 				self.dlen=self.x.size;
 				self.plen=1
+				self.x=self.x.T;
 			elif (self.x.ndim==2):
 				self.dlen, self.plen=self.x.shape;
 			else:
@@ -59,7 +69,7 @@ class KPlaneObj():
 				my=self.y.size;
 				if (my!=self.dlen):
 					raise ValueError, "data size not equal in x and y!";
-				self.y=self.y.T
+				self.y=self.y.T;
 			elif (self.y.ndim==2):
 				my, ny=self.y.shape;
 				if (my!=self.dlen):
@@ -372,8 +382,8 @@ class KPlaneObj():
 			if(rmsUpdate2):
 				rms2=self.UpdateRegression();
 
-			if self.print_in: print "Grouped state: "+ str(dgroup.T)
-			if self.print_in: print "RMS now: "+str(rms2)
+			if self.print_in: print "Grouped state: "+ str(dgroup.T);
+			if self.print_in: print "RMS now: "+str(rms2);
 
 			if (rms2<minrms):
 				if (minrms-rms2<self.rmslimit):
@@ -381,7 +391,7 @@ class KPlaneObj():
 				else: minrmscount=1;
 				minrms=rms2;
 				minstartcount=0;
-				if self.print_in: print "New Min RMS: "+str(minrms)
+				if self.print_in: print "New Min RMS: "+str(minrms);
 			if (rms2-minrms<self.rmslimit and rms2>=minrms):
 				minrmscount+=1;
 				#if (minrmscount>10):
@@ -392,24 +402,34 @@ class KPlaneObj():
 			if (minstartcount>500):
 				oldminrms=minrms;
 				minrms=rms2;
-				if self.print_in: print "Best Min RMS before changing MINRMS: "+str(oldminrms)
+				if self.print_in: print "Best Min RMS before changing MINRMS: "+str(oldminrms);
 				minstartcount=0;
 			minstartcount+=1;
 
-		partition_groups=dgroup.copy()
-		coef=wts.copy()
-		finalgroup=list(set(dgroup.T[0].tolist()))
-		finalgroup.sort()
-		if self.print_in: print "Final group number: "+str(len(finalgroup))
+		partition_groups=dgroup.copy();
+		coef=wts.copy();
+		finalgroup=list(set(dgroup.T[0].tolist()));
+		finalgroup.sort();
+		if self.print_in: print "Final group number: "+str(len(finalgroup));
 		#print rms1,rms2
 		#print coef
 		return (rms2,coef,partition_groups);
 
-	def outnow(self,filename):
+	# Basic file name
+	# OnlyGroup to output only the group id as data sequence 
+	def outnow(self,filename,OnlyGroup=False):
 		fnamelist=os.path.splitext(filename);
-		fdata=open(fnamelist[0]+'_'+fnamelist[1],'w')
-		fpar=open(fnamelist[0]+'_par'+fnamelist[1],'w')
+		fdata=fnamelist[0]+'_gdata'+fnamelist[1];
+		fpar=fnamelist[0]+'_par'+fnamelist[1];
+		data=np.zeros((self.dlen,self.plen+2));
+		gmat=self.partition_groups.ravel()
 
+		data[:,0]=gmat;
+		if (OnlyGroup):
+			data[:,1]=self.y;
+			data[:,2:]=self.x;
+		np.savetxt(fdata,data);
+		np.savetxt(fpar,self.wts);
 
 if (__name__=="__main__"):
 	try:
@@ -423,6 +443,7 @@ if (__name__=="__main__"):
 		kp.SetAllParameters(klamda=0.0001,rlamda=500, rmslimit=0.0001);
 		#Calculate the partitioning by k-plane regression
 		rms, coef, partition_groups = kp.kplane();
+		kp.outnow('data.txt');
 		print rms
 		print coef
 		print partition_groups
