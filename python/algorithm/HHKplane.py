@@ -421,11 +421,14 @@ class KPlaneObj():
 		fnamelist=os.path.splitext(filename);
 		fdata=fnamelist[0]+'_gdata'+fnamelist[1];
 		fpar=fnamelist[0]+'_par'+fnamelist[1];
-		data=np.zeros((self.dlen,self.plen+2));
+		if (not OnlyGroup):
+			data=np.zeros((self.dlen,self.plen+2));
+		else:
+			data=np.zeros((self.dlen,1),dtype=np.int32)
 		gmat=self.partition_groups.ravel()
 
 		data[:,0]=gmat;
-		if (OnlyGroup):
+		if (not OnlyGroup):
 			data[:,1]=self.y;
 			data[:,2:]=self.x;
 		np.savetxt(fdata,data);
@@ -433,20 +436,28 @@ class KPlaneObj():
 
 if (__name__=="__main__"):
 	try:
+		if (len(sys.argv)<2):
+			raise ValueError("Input file is needed!")
+		fname=sys.argv[1]
+		ngroup=3
+		if (len(sys.argv)>=3):
+			ngroup=int(sys.argv[2])
+
+		
 		# create Kplane object
 		kp=KPlaneObj();
 		# Initialize data by file and set up program
-		kp.initializeByFile("data.txt",num_group=8,regroup=False,randomgroup=False,print_in=False);
+		kp.initializeByFile(fname,num_group=ngroup,regroup=False,randomgroup=False,print_in=False);
 		# Setup parameters. PS: initial will reset all default parameters, 
 		# you have to set them after initialization if you don't want to use default. 
 		# Default: klamda=0.001, rlamda=500,rmslimit=0.0001
 		kp.SetAllParameters(klamda=0.0001,rlamda=500, rmslimit=0.0001);
 		#Calculate the partitioning by k-plane regression
 		rms, coef, partition_groups = kp.kplane();
-		kp.outnow('data.txt');
-		print rms
-		print coef
-		print partition_groups
+		kp.outnow(fname,OnlyGroup = True);
+		#print rms
+		#print coef
+		#print partition_groups
 
 	except:
 		traceback.print_exc()
