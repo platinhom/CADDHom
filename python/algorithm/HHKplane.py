@@ -415,9 +415,9 @@ class KPlaneObj():
 		#print coef
 		return (rms2,coef,partition_groups);
 
-	# Basic file name
-	# OnlyGroup to output only the group id as data sequence 
-	def outnow(self,filename,OnlyGroup=False):
+	def outputGroupData(self,filename,OnlyGroup=False):
+		# Basic file name for output
+		# OnlyGroup to output only the group id as data sequence 
 		fnamelist=os.path.splitext(filename);
 		fdata=fnamelist[0]+'_gdata'+fnamelist[1];
 		fpar=fnamelist[0]+'_par'+fnamelist[1];
@@ -454,7 +454,7 @@ if (__name__=="__main__"):
 		kp.SetAllParameters(klamda=0.0001,rlamda=500, rmslimit=0.0001);
 		#Calculate the partitioning by k-plane regression
 		rms, coef, partition_groups = kp.kplane();
-		kp.outnow(fname,OnlyGroup = True);
+		kp.outputGroupData(fname,OnlyGroup = True);
 		#print rms
 		#print coef
 		#print partition_groups
