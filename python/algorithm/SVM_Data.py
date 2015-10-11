@@ -186,11 +186,17 @@ class SVM_Data:
 		for c in self.classid:
 			classNow=self.classdata[c];
 			count=len(classNow);
-			# training set number (tradio: trainsing set radio)
-			Ntrain=int(count*self.tradio);
-
 			self.train[c]=[]
 			self.valid[c]=[]
+
+			# Exception: only one data in a class. 
+			if (count==1):
+				# if only one data, put it to training set.
+				self.train[c].append(classNow[0]);
+				continue;
+
+			# training set number (tradio: trainsing set radio)
+			Ntrain=int(count*self.tradio);
 			# Get a random list
 			shufflelist=range(count);
 			random.shuffle(shufflelist);
