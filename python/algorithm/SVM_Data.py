@@ -14,6 +14,7 @@ User can also assign the output sets number, defalut is 1
 # 4. Output by random data in the class(LCM on train set, equal class probability)
 # 5. Output by random data in all data(Given size from train set, origin class probability)
 # 6. Output by random data in random class(Given size from train set, equal class probability)
+# 7. Output for N-fold cross-validation (Generate N model, one set as validation)
 
 Usage: python SVM_Data.py input.txt [outsetNumber trainingRadio methodID methodParameter] 
 methodParameter in method 2,4 for LCM multiple factor; method 5,6 for total output data number.
@@ -446,11 +447,38 @@ class SVM_Data:
 				ftrain.write('\n')					
 			ftrain.close()
 
+	def writeTV2SVMfileNfold(self, filename, outputsets=10):
+		# write out data in training/valid set to corresponding file in svm format
+		# Use N-fold method	
+		# if outset=0 (not given), use the nset attr. in obj.
+		# Note: Data were randomly group first and then one group as validation, write out N model.
+
+		fnamelist=os.path.splitext(filename);
+		if (outputsets==0): outputsets=self.nset;
+
+		for outset in range(outputsets):
+			# Reset and Randomize the train/valid set
+			self.RandomTrainData();
+			# Output valid set
+			trainfname=fnamelist[0]+"_train_"+str(outset+1)+fnamelist[1];
+			validfname=fnamelist[0]+"_valid_"+str(outset+1)+fnamelist[1];
+			self.writeValidData(validfname);
+			ftrain=open(trainfname,'w');
+			for i in self.classid:
+				classNow=self.train[i];
+				count=len(classNow);
+				#write multi times bases on Least Common(classlen*classLC[i])
+				for mlc in range(self.classLC[i]*count):
+					data=classNow[random.randint(0,count-1)];
+					ftrain.write(str(int(i))+" "+self.strdata(data,svmformat=True));
+					ftrain.write('\n')					
+			ftrain.close()
+
 	def writeTV2SVMfile(self, filename, methodID=1, outputsets=0,parameter=0):
 		# To control output train/valid set method based methodID
 		# parameter for LCM is the multiple factor; for randomTotal is the training set size.
 
-		if (methodID>6 or methodID<1):
+		if (methodID>7 or methodID<1):
 			raise ValueError("Error Method ID!: "+str(methodID));
 
 		if (methodID==1):

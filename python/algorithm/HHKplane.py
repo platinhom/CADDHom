@@ -232,7 +232,7 @@ class KPlaneObj():
 		gdataIndex=np.where(self.partition_groups.ravel()==gn1)[0]
 		#for i in range(self.dlen):
 		for j in range(len(gdataIndex)):
-			i=gdataIndex[j]
+			i=gdataIndex[j];
 			if (i!=num):
 				err2=self.errors[i];
 				gn2=self.dgroup[i];
@@ -281,7 +281,7 @@ class KPlaneObj():
 						# print self.errors[maxerrn]
 						self.errors[maxerrn]=0.0
 						maxerrn2=np.argmax(self.errors)
-						#print self.errors[maxerrn2]
+						# print self.errors[maxerrn2]
 						self.errors[maxerrn2]=0.0
 
 						# maxerrn2=self.FindMatchPoint(maxerrn)
