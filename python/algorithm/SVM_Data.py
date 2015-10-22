@@ -533,7 +533,7 @@ class SVM_Data:
 		fr=open(fname);
 		fw=open(outf,'w');
 		for line in fr:
-			tmp=line.strip().split(sep);
+			tmp=line.strip().split();
 			outlist=[];
 			for i in range(len(tmp)):
 				if ((i+1) in columnList):

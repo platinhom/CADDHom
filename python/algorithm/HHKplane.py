@@ -87,6 +87,7 @@ class KPlaneObj():
 				self.SetGroupNumber(int(self.dlen/2));
 
 	def SetAllParameters(self,klamda=0.001,rlamda=500, rmslimit=0.0001):
+		#Set all parameter in calculation
 		self.klamda=klamda
 		self.rlamda=rlamda
 		self.rmslimit=rmslimit
@@ -96,6 +97,7 @@ class KPlaneObj():
 		# May need further dgroup assignment
 
 	def SetGroupData(self,dgroup):
+		# Set group number to each data
 		if (isinstance(dgroup,np.ndarray)):
 			self.dgroup=dgroup;
 		else:
@@ -105,23 +107,23 @@ class KPlaneObj():
 		if (self.dgroup.ndim==1):
 			self.dgroup.resize((self.dlen,1));
 
-	### Grouping function can use only after initialize
-	#   Grouping Based on sequence
 	def AutoGroup(self):
+		### Grouping function can use only after initialize
+		#   Grouping Based on sequence
 		num_group=self.num_group
 		dlen=self.dlen
 		for k in range(0,num_group-1):
 			self.dgroup[k*np.floor(dlen/num_group):(k+1)*np.floor(dlen/num_group)]=k+1;
 		self.dgroup[(num_group-1)*np.floor(dlen/num_group):dlen]=num_group;
 
-	#   Grouping Based on randomize
 	def RandomGroup(self):
+		#   Grouping Based on randomize
 		for i in range(self.dlen):
 			self.dgroup[i]=np.random.randint(1,num_group+1);
 
-	### Initialization on different input data
-	#   Initialize based on x and y data (array or list or tuple)
 	def initializeByData(self,x,y,num_group=1,regroup=True,randomgroup=False,print_in=False):
+		### Initialization on different input data
+		#   Initialize based on x and y data (array or list or tuple)
 		try:
 			if (isinstance(x,np.ndarray)):
 				self.x=x
@@ -154,8 +156,9 @@ class KPlaneObj():
 			traceback.print_exc()
 			exit()
 
-	#   Initialize based on data file (with y x data)
 	def initializeByFile(self,filename='data.txt',num_group=1,regroup=True,randomgroup=False,print_in=False):
+		'''Initialize based on data file (with y x data)
+		Data file as "y x1 x2..."'''
 		#load data from file
 		try:
 			data=np.loadtxt(filename) #dlen(m) data * plen(n) para + 1
@@ -169,8 +172,9 @@ class KPlaneObj():
 			traceback.print_exc()
 			exit()
 
-	#   Initialize based on data file with group information (with group y x data)
 	def initializeByFileWithGroup(self,filename='data.txt',num_group=1,regroup=True,print_in=False):
+		'''Initialize based on data file with group information (with group y x data)
+		Data file as "group_num y x1 x2..."'''
 		#load data from file
 		try:
 			data=np.loadtxt(filename); #dlen(m) data * plen(n) para + 1 y + 1 group
@@ -188,6 +192,8 @@ class KPlaneObj():
 			exit();
 
 	def LeastSqaures(self,x,y,rlamda=500):
+		# Least Sqaures for y and x data.
+		# Return the weight for x
 		try:
 			if (x.ndim==1):
 				mx=x.size;
@@ -216,6 +222,7 @@ class KPlaneObj():
 			exit()	
 
 	def CalcRMSArray(self,arr):
+		# Calculate the RMS for deltaY array
 		return np.sqrt((arr.T.dot(arr)).ravel()[0]/arr.shape[0])
 
 	#on test
@@ -258,6 +265,8 @@ class KPlaneObj():
 			return nummin;
 
 	def UpdateCenters(self):
+		# Updata Center information in a group. 
+		# Whether regroup the data based on self.regroup.
 		updateHere=False # Whether need to update rms
 		for i in range(self.num_group):
 			try:
@@ -301,6 +310,8 @@ class KPlaneObj():
 		return updateHere
 
 	def UpdateRegression(self):
+		# Update the weight for each group and error for each data
+		# Return the new RMS.
 		for i in range(self.num_group):
 			#500*eye(n) is the regularization in the regression
 			dgindex=np.where(self.partition_groups.ravel()==i+1)[0]
@@ -320,8 +331,8 @@ class KPlaneObj():
 		rms=self.CalcRMSArray(self.errors);
 		return rms;
 
-	# The main kpane function here
 	def kplane(self):
+		# The main kpane function here
 		rms1=10.0; rms2=0.0;
 		coef=0.0;
 
@@ -447,7 +458,13 @@ if (__name__=="__main__"):
 		# create Kplane object
 		kp=KPlaneObj();
 		# Initialize data by file and set up program
+		# Data in file should be "y x1 x2 x3...."
 		kp.initializeByFile(fname,num_group=ngroup,regroup=False,randomgroup=False,print_in=False);
+
+		# Initialize data by file and set up program with initial group information.
+		# Data in file should be "y x1 x2 x3...."
+		#kp.initializeByFileWithGroup(fname,num_group=ngroup,regroup=False,randomgroup=False,print_in=False);
+
 		# Setup parameters. PS: initial will reset all default parameters, 
 		# you have to set them after initialization if you don't want to use default. 
 		# Default: klamda=0.001, rlamda=500,rmslimit=0.0001
