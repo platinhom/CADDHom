@@ -5,6 +5,8 @@
 # This file is part of Cinfony.
 # The contents are covered by the terms of the GPL v2 license
 # which is included in the file LICENSE_GPLv2.txt.
+#
+# Zhixiong Zhao Revised based on 2015.10.10 version in Github
 
 """
 pybel - A Cinfony module for accessing Open Babel
@@ -798,7 +800,7 @@ class Residue(object):
 
     (refer to the Open Babel library documentation for more info).
 
-    The original Open Babel atom can be accessed using the attribute:
+    The original Open Babel residue can be accessed using the attribute:
        OBResidue
     """
 
@@ -826,6 +828,44 @@ class Residue(object):
         """
         return iter(self.atoms)
 
+class Bond(object):
+    """Represent a Pybel bond.
+
+    Required parameter:
+       OBBond -- an Open Babel OBBond
+
+    Attributes:
+       atoms, idx, name.
+
+    (refer to the Open Babel library documentation for more info).
+
+    The original Open Babel bond can be accessed using the attribute:
+       OBBond
+    """
+
+    def __init__(self, OBBond):
+        self.OBResidue = OBResidue
+
+    @property
+    def atoms(self):
+        return [Atom(atom) for atom in ob.OBResidueAtomIter(self.OBResidue)]
+
+    @property
+    def idx(self):
+        return self.OBResidue.GetIdx()
+
+    @property
+    def name(self):
+        return self.OBResidue.GetName()
+
+    def __iter__(self):
+        """Iterate over the Atoms of the Residue.
+
+        This allows constructions such as the following:
+           for atom in residue:
+               print atom
+        """
+        return iter(self.atoms)
 
 def _findbits(fp, bitsperint):
     """Find which bits are set in a list/vector.
