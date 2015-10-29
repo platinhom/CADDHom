@@ -292,6 +292,7 @@ class Molecule(object):
        atoms, charge, conformers, data, dim, energy, exactmass, formula,
        molwt, spin, sssr, title, unitcell.
     (refer to the Open Babel library documentation for more info).
+    bonds,residues
 
     Methods:
        addh(), calcfp(), calcdesc(), draw(), localopt(), make3D(),
@@ -318,6 +319,10 @@ class Molecule(object):
     def atoms(self):
         return [Atom(self.OBMol.GetAtom(i + 1))
                 for i in range(self.OBMol.NumAtoms())]
+
+    @property
+    def bonds(self):
+        return [Bond(bnd) for bnd in ob.OBMolBondIter(self.OBMol)]
 
     @property
     def residues(self):
@@ -835,7 +840,7 @@ class Bond(object):
        OBBond -- an Open Babel OBBond
 
     Attributes:
-       atoms, idx, name.
+       bgn, end, length, bo, bondorder, idx, IsAromatic, IsInRing, IsSingle, IsDouble, IsTriple.
 
     (refer to the Open Babel library documentation for more info).
 
@@ -844,28 +849,32 @@ class Bond(object):
     """
 
     def __init__(self, OBBond):
-        self.OBResidue = OBResidue
+        self.OBBond = OBBond;
 
     @property
-    def atoms(self):
-        return [Atom(atom) for atom in ob.OBResidueAtomIter(self.OBResidue)]
+    def bgn(self):
+        return Atom(self.OBBond.GetBeginAtom())
+
+    @property
+    def end(self):
+        return Atom(self.OBBond.GetEndAtom())
 
     @property
     def idx(self):
-        return self.OBResidue.GetIdx()
+        return self.OBBond.GetIdx()
 
     @property
-    def name(self):
-        return self.OBResidue.GetName()
+    def length(self):
+        return self.OBBond.GetLength()
 
     def __iter__(self):
-        """Iterate over the Atoms of the Residue.
+        """Iterate over the Atoms of the bond.
 
         This allows constructions such as the following:
-           for atom in residue:
+           for atom in bond:
                print atom
         """
-        return iter(self.atoms)
+        return iter([self.bgn,self.end])
 
 def _findbits(fp, bitsperint):
     """Find which bits are set in a list/vector.
