@@ -7,6 +7,7 @@ def pqrbug(filename):
 # Return the string for the file, which can be read by:
 #   pybel.readstring('pqr',pqrbug(filename)).
 #   ob.OBConversion().ReadString(obmol, string)
+# BUG has been removed in Mac version.
 	f=open(filename);
 	lines=f.readlines();
 	out=""
@@ -33,6 +34,9 @@ def calcdipole(bond):
 			+pow((bgncharge*bgncoor[1]+endcharge*endcoor[1]),2)
 			+pow((bgncharge*bgncoor[2]+endcharge*endcoor[2]),2));
 	return dipole
+
+def distance(atom1,atom2):
+	return atom1.OBAtom.GetDistance(atom2.OBAtom);
 
 if __name__ =="__main__":
 	mol=pybel2.readstring('pqr',pqrbug(filename));
