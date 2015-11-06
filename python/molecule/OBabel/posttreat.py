@@ -107,7 +107,7 @@ def descVar(*args):
 	mi=min(args)
 	sumall=math.fsum(args)
 	aver=sumall/len(args)
-	var= math.fsum((pow(x-aver,2) for x in args)) /(len(args)-1)
+	var= math.fsum((pow(x-aver,2) for x in args)) /(len(args))
 	std=math.sqrt(var)
 	return (mx,mi,sumall,aver,std)
 
@@ -135,8 +135,8 @@ def CalcFeatures(mol):
 	print "Partial Charge Max, Min, Sum, Average, Std:",descVar(pcs)
 	print "Abs Partial Charge Max, Min, Sum, Average, Std:",descVar(pcsAbs)
 
-	EleHyb={}
 	# hybridization
+	EleHyb={}
 	for atom in mol:
 		ehyb=atomNumHyd(atom)
 		if (ehyb[0] is 6):
@@ -168,6 +168,31 @@ def CalcFeatures(mol):
 			elif (ehyb[1] is 3):
 				EleHyb["S3"]=EleHyb.get("S3",0)+1
 	print "Element Hybridization:",EleHyb
+
+	hybtypes=["C1","C2","C3","N1","N2","N3","O1","O2","O3","S1","S2","S3"];
+	hybcount={}
+	for t in hybtypes:
+		hybcount[t]=EleHyb.get(t,0)
+	print "Element Hybridization count:",hybcount
+
+	# dipole
+	dipoles= [calcdipoleBond(bond) for bond in mol.bonds]
+	print "Bond Dipoles Max, Min, Sum, Average, Std:", descVar(dipoles)
+	bndpair= [atomnumBondPair(bond) for bond in mol.bonds ]
+	bpd={}
+	for i in range(len(dipoles)):
+		dp=dipoles[i]
+		bp=bndpair[i]
+		if not bpd.has_key(bp):
+			bpd[bp]=[]
+		bpd[bp].append(dp)
+	bpneed=[(1,6),(1,7),(1,8),(1,16),(6,6),(6,7),(6,8),(6,9),(6,15),(6,16),(6,17),(6,35),(6,53),
+			(7,8),(8,15),(8,16),(15,16),(16,16)]
+	bpddesc={}
+	for bpn in bpneed:
+		bpddesc[bpn]=descVar(bpd.get(bpn,[0.0]))
+	print bpddesc
+
 
 if __name__ =="__main__":
 	mol=pybel2.readstring('pqr',pqrbug(filename));
