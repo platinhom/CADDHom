@@ -305,21 +305,35 @@ def featureString():
 	return fstr	
 
 if __name__ =="__main__":
-	parser = OptionParser() 
+	helpdes='''Calculate features of molecules based on Pybel and Openbabel.
+	# For one file, use -i option to assign the input file;
+	# For many files, use -m option to assign a file containing file name without extension.
+	# -f option can assign the file format. It must be given when using -m option. 
+	# Without -f option and using -i option, the format will be deduced based on file extension.
+	# -t option will print the title for features.'''
+
+	parser = OptionParser(description=helpdes) 
 	parser.add_option("-i", "--input", action="store", 
                     dest="input", default="",
                     help="Read input data from input file")
-	parser.add_option("-f", "--format", action="store", 
-					dest="format", default="",
-              		help="Input file format")
 	parser.add_option("-m", "--multi", action="store", 
 					dest="multi", default="",
               		help="File containing file name without extension, format must be assigned!")
-	parser.add_option("-s", "--string", action="store_true", 
-					dest="string", default=False,
-              		help="Print the feature string")
+	parser.add_option("-f", "--format", action="store", 
+					dest="format", default="",
+              		help="Input file format")
+	parser.add_option("-o", "--output", action="store", 
+					dest="output", default="",
+              		help="The output file to save result")
+	parser.add_option("-t", "--title", action="store_true", 
+					dest="title", default=False,
+              		help="Print the feature title")
 	(options, args) = parser.parse_args()
-	if (options.string): print featureString()
+	stdout=sys.stdout
+	if (options.output!=""):
+		ftmp=open(options.output,'w');
+		sys.stdout=ftmp
+	if (options.title): print featureString()
 	if (options.input != ""):
 		filename=options.input
 		fnamelist=os.path.splitext(filename)
@@ -351,3 +365,5 @@ if __name__ =="__main__":
 	else:
 		raise ValueError("No input file!")
 		exit(1)
+	sys.stdout=stdout;
+	if (options.output!=""):ftmp.close()
