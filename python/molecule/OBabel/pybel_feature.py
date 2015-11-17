@@ -5,7 +5,8 @@ from optparse import OptionParser
 import pybel2
 import openbabel as op
 import numpy as np
-
+ # http://openbabel.org/dev-api/classOpenBabel_1_1OBMol.shtml
+ 
 def pqrbug(filename):
 # Bug in Openbabel for PQR format reader
 # Return the string for the file, which can be read by:
