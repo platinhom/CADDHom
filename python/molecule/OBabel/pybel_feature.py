@@ -5,7 +5,7 @@ from optparse import OptionParser
 import pybel2
 import openbabel as op
 import numpy as np
- # http://openbabel.org/dev-api/classOpenBabel_1_1OBMol.shtml
+# http://openbabel.org/dev-api/classOpenBabel_1_1OBMol.shtml
  
 def pqrbug(filename):
 # Bug in Openbabel for PQR format reader
@@ -72,16 +72,19 @@ def calcdipoleBond(bond):
 	return dipole
 
 def atomnumBondPair(bond):
+	# Return bond atoms atomic number pair, such as C-O return (6,7)
 	return tuple(sorted([bond.bgn.atomicnum,bond.end.atomicnum]))
 
 def atomNumHyd(atom):
+	# Return Atom's (atomic number, hydribazation) pair.
 	return (atom.atomicnum,atom.hyb)
 
 def distance(atom1,atom2):
+	# Return distance between two atoms.
 	return atom1.OBAtom.GetDistance(atom2.OBAtom);
 
 def MolInfo(mol,printInfo=True):
-
+	# Ruturn a list containing molecular information/features
 	smile=mol.write('smi').strip().split()[0]
 	dipole=calcdipoleAtoms(*mol.atoms)
 	TNatms=mol.OBMol.NumAtoms();
@@ -112,7 +115,7 @@ def MolInfo(mol,printInfo=True):
 	return [mol.formula,mol.molwt,smile,dipole,TNatms,HEatms,Hatms,TNbnds,sbnds,dbnds,tbnds,abnds]
 
 def descVar(*args):
-	# Return [max, min, sum, average, std]
+	# Return [max, min, sum, average, std] for given data
 	if (isinstance(args[0],list)):
 		args=args[0]
 	mx=max(args)
