@@ -6,13 +6,17 @@ import pybel2
 import openbabel as op
 import numpy as np
 # http://openbabel.org/dev-api/classOpenBabel_1_1OBMol.shtml
- 
+
+Molecule=pybel2.Molecule
+Atom=pybel2.Atom
+Bond=pybel2.Bond
+
 def pqrbug(filename):
-# Bug in Openbabel for PQR format reader
-# Return the string for the file, which can be read by:
-#   pybel.readstring('pqr',pqrbug(filename)).
-#   ob.OBConversion().ReadString(obmol, string)
-# BUG has been removed in Mac version.
+	# Bug in Openbabel for PQR format reader
+	# Return the string for the file, which can be read by:
+	#   pybel.readstring('pqr',pqrbug(filename)).
+	#   ob.OBConversion().ReadString(obmol, string)
+	# BUG has been removed in Mac version.
 	f=open(filename);
 	lines=f.readlines();
 	out=""
@@ -20,9 +24,10 @@ def pqrbug(filename):
 		if line[:6]=="ATOM  " or line[:6]=="HETATM":
 			newline=line
 			# Bug in Openbabel 2.3.2 windows version
+			# Mac have exclude the error, only for window
 			if (platform.system()=="Windows"):
 				newline=newline[:-3]+'\n';
-			# Br ->B..
+			# Br ->B error in PQR format..
 			if (line[12:15]==" Br"): newline=newline[:12]+"Br "+newline[15:] 
 			if (line[12:15]==" Cl"): newline=newline[:12]+"Cl "+newline[15:] 
 			if (line[12:15]==" Na"): newline=newline[:12]+"Na "+newline[15:] 
@@ -32,9 +37,50 @@ def pqrbug(filename):
 	f.close()
 	return out;
 
-Molecule=pybel2.Molecule
-Atom=pybel2.Atom
-Bond=pybel2.Bond
+def pqrx_reader(filename, lastlen=12, columns=1):
+	# read the pqrx/pqra/pqrta file containing atomic data
+	# Return (pqr_string, atomic_data_list). 
+	# 	atomic_data_list is many lists saving multi-types data!
+	# This function should *not* be used with pqrbug function!
+	if (lastlen<=0 or columns<1):
+		raise ValueError("Error last len or column number!");
+		exit(1)
+	f=open(filename);
+	lines=f.readlines();
+	out=""
+	# Initial output data in a list
+	# In this list, each column data as a children list.
+	outdata=[];
+	for i in range(columns):
+		outdata.append([]);
+
+	# Deal with each line
+	for line in lines:
+		if line[:6]=="ATOM  " or line[:6]=="HETATM":
+			# Split the data and pqr data in a line.
+			newline=line.rstrip('\n')
+			newline=newline.rstrip('\r')
+			data=newline[-lastlen:];
+			newline=newline[:-lastlen]+'\n'
+			# Set the data
+			datas=data.strip().split()
+			if (len(datas)!=columns):
+				raise ValueError("Given column number not the same to the data!");
+				exit(1);
+			for i in range(columns):
+				outdata[i].append(datas[i])
+			# Mac have exclude the error, only for window
+			if (platform.system()=="Windows"):
+				newline=newline[:-3]+'\n';
+			# Br ->B error in PQR format..
+			if (line[12:15]==" Br"): newline=newline[:12]+"Br "+newline[15:] 
+			if (line[12:15]==" Cl"): newline=newline[:12]+"Cl "+newline[15:] 
+			if (line[12:15]==" Na"): newline=newline[:12]+"Na "+newline[15:] 
+			if (line[12:15]==" Mg"): newline=newline[:12]+"Mg "+newline[15:] 
+			out+=newline
+		else: out+=line;
+	f.close()
+	return (out,outdata);
 
 def calcdipoleAtoms(*atoms):
 	# give many atom as input
@@ -127,6 +173,8 @@ def descVar(*args):
 	return (mx,mi,sumall,aver,std)
 
 def featureDict2List(ftype, fdict):
+	# Arrange data in a fdict to the sequence as giving list ftype(saving keys)
+	# if in key:value, the value is a list, it will expand to several data for this key in the final list.
 	features=[]
 	for f in ftype:
 		if (isinstance(fdict[f],Iterable)):
@@ -134,6 +182,26 @@ def featureDict2List(ftype, fdict):
 		else:
 			features.append(fdict[f])
 	return features
+
+def CalcDataElementFeature(mol,data):
+	elements=[1,6,7,8,9,15,16,17,35,53]
+	atomsnum=[atom.atomicnum for atom in mol];
+	pcdict={};
+	pcdesc={}
+	fdata=map(float,data);
+	for ele in elements:
+		pcdict[ele]=[]
+	for i in range(len(atomsnum)):
+		pcdict[atomsnum[i]].append(fdata[i]);
+	for ele in elements:
+		if (len(pcdict[ele])>0):
+			pcdesc[ele]=descVar(pcdict[ele])
+		else:
+			pcdesc[ele]=descVar([0.0])
+	# Data Value Max, Min, Sum, Average, Std:
+	# For H,C,N,O,F,P,S,Cl,Br,I
+	#   Element Partial Charge Max, Min, Sum, Average, Std:
+	return list(descVar(fdata))+featureDict2List(elements,pcdesc)
 
 def CalcFeatures(mol,printInfo=True):
 	atoms=mol.atoms;
@@ -152,12 +220,12 @@ def CalcFeatures(mol,printInfo=True):
 		elecounts[an]=elecounts.get(an,0)+1
 
 	# partial charge
-	acDict={};
+	acDict={}; #for sum element pcharge
 	acDictAbs={};
 	pcs=[atom.partialcharge for atom in mol]
 	pcsAbs=[abs(pc) for pc in pcs]
-	pcdict={}
-	pcdesc={}
+	pcdict={} #for saving each atom pcharge in a element key
+	pcdesc={} #for saving Max/min.. for a element
 	pcAbsdict={}
 	pcAbsdesc={}
 	for ele in elements:
@@ -254,22 +322,22 @@ def CalcFeatures(mol,printInfo=True):
 		print "Bond Atom Pair Dipoles Max, Min, Sum, Average, Std:",bpddesc
 
 	# Mol Formula, Mol Weight, Mol SMILE, Mol dipole, Total Atoms number, Heavy Atom number, Hydrogen number, 
-	# Bond number, Single Bond number, Double Bond number, Triple Bond number, Aromatic Bond number
-	# For H,C,N,O,F,P,S,Cl,Br,I
+	# Bond number, Single Bond number, Double Bond number, Triple Bond number, Aromatic Bond number (molinfo)
+	# For H,C,N,O,F,P,S,Cl,Br,I (elecounts)
 	#   Element number
-	# Partial Charge, Abs Partial Charge, Bond Dipoles: Max, Min, Sum, Average, Std
+	# Partial Charge, Abs Partial Charge, Bond Dipoles: Max, Min, Sum, Average, Std (descVar(pcs)+descVar(pcsAbs)+descVar(dipoles))
 	# 
-	# For H,C,N,O,F,P,S,Cl,Br,I
+	# For H,C,N,O,F,P,S,Cl,Br,I (elePCfeatures)
 	# 	Element Partial Charge 
 	# 	Element Abs Partial Charge 
 	# 	Element Partial Charge Max, Min, Sum, Average, Std 
 	# 	Abs Element Partial Charge Max, Min, Sum, Average, Std
 	#
-	# For ["C1","C2","C3","N1","N2","N3","O1","O2","O3","S1","S2","S3"]
+	# For ["C1","C2","C3","N1","N2","N3","O1","O2","O3","S1","S2","S3"] (hybfeatures)
 	# 	Element Hybridization count
 	#
 	# For [(1,6),(1,7),(1,8),(1,16),(6,6),(6,7),(6,8),(6,9),(6,15),(6,16),(6,17),(6,35),(6,53),(7,8),(8,15),(8,16),(15,16),(16,16)]
-	# For HC,HN,HO,HS,CC,CN,CO,CF,CP,CS,CCl,CBr,CI,NO,OP,OS,PO,SS
+	# For HC,HN,HO,HS,CC,CN,CO,CF,CP,CS,CCl,CBr,CI,NO,OP,OS,PO,SS (dipolefeautures)
 	# 	Bond Atom Pair Dipoles Max, Min, Sum, Average, Std
 	outlist=molinfo+featureDict2List(elements, elecounts)+list(descVar(pcs))+list(descVar(pcsAbs))+list(descVar(dipoles)) \
 			+elePCfeatures+hybfeatures+dipolefeautures
@@ -333,28 +401,53 @@ if __name__ =="__main__":
 					dest="title", default=False,
               		help="Print the feature title")
 	(options, args) = parser.parse_args()
+
+	if (len(sys.argv)<2):
+		print "Please assign an input file or a file containing all file prefix!"
+		parser.print_help()
+		#parser.print_description()
+		#parser.print_usage()
+		exit(1)
+
+	# Let the stdout to an output file!
 	stdout=sys.stdout
 	if (options.output!=""):
 		ftmp=open(options.output,'w');
 		sys.stdout=ftmp
+	# Print header
 	if (options.title): print featureString()
-	if (options.input != ""):
+
+	# Using a simple input molecule file
+	datas=[] #savine mol datas
+	if (options.input != "" and options.multi == ""):
 		filename=options.input
 		fnamelist=os.path.splitext(filename)
+		# set format
 		fformat=options.format
 		if (fformat==""):
-			fformat=fnamelist[1][1:].lower()
+			fformat=fnamelist[1][1:]
+		fformat=fformat.lower()
+
+		# Special for pqr related format
 		if (fformat=="pqr"):
 			mol=pybel2.readstring('pqr',pqrbug(filename));
+		elif (fformat=="pqra" or fformat=="pqrx" or fformat=="pqrt"):
+			molstr,datas=pqrx_reader(filename, lastlen=12, columns=1);
+			mol=pybel2.readstring('pqr',molstr);
+		elif (fformat=="pqrta"):
+			molstr,datas=pqrx_reader(filename, lastlen=24, columns=2);
+			mol=pybel2.readstring('pqr',molstr);
 		else:
 			mol=pybel2.readfile(fformat,filename).next();
 		features=CalcFeatures(mol,printInfo=False)
 		print fnamelist[0]+" "+" ".join(features)
+	# Compound id in a file to process batch 
 	elif (options.multi != "" and options.format != ""):
 		fin=open(options.multi)
 		flist=fin.readlines()
 		fin.close()
 		fformat=options.format
+		fformat=fformat.lower()
 		for f in flist:
 			try:
 				filename=f.strip()+"."+fformat
