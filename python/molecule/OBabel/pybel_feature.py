@@ -184,6 +184,8 @@ def featureDict2List(ftype, fdict):
 	return features
 
 def CalcDataElementFeature(mol,data):
+	# Calculate Element based Features based on data and molecule
+	# data should based on atom, with same sequence
 	elements=[1,6,7,8,9,15,16,17,35,53]
 	atomsnum=[atom.atomicnum for atom in mol];
 	pcdict={};
@@ -386,20 +388,26 @@ if __name__ =="__main__":
 
 	parser = OptionParser(description=helpdes) 
 	parser.add_option("-i", "--input", action="store", 
-                    dest="input", default="",
-                    help="Read input data from input file")
+					dest="input", default="",
+					help="Read input data from input file")
 	parser.add_option("-m", "--multi", action="store", 
 					dest="multi", default="",
-              		help="File containing file name without extension, format must be assigned!")
+					help="File containing file name without extension, format must be assigned!")
+	parser.add_option("--prefix", action="store", 
+					dest="prefixname", default="",
+					help="Perfix part of file name before id read from -m file")
+	parser.add_option("--mid", action="store", 
+					dest="midname", default="",
+					help="Middle part of file name between id read from -m file and -f format extension")
 	parser.add_option("-f", "--format", action="store", 
 					dest="format", default="",
-              		help="Input file format")
+					help="Input file format")
 	parser.add_option("-o", "--output", action="store", 
 					dest="output", default="",
-              		help="The output file to save result")
+					help="The output file to save result")
 	parser.add_option("-t", "--title", action="store_true", 
 					dest="title", default=False,
-              		help="Print the feature title")
+					help="Print the feature title")
 	(options, args) = parser.parse_args()
 
 	if (len(sys.argv)<2):
@@ -414,11 +422,11 @@ if __name__ =="__main__":
 	if (options.output!=""):
 		ftmp=open(options.output,'w');
 		sys.stdout=ftmp
-	# Print header
-	if (options.title): print featureString()
+
+	datas=[] #savine extra mol datas
+	extrastring="" #saving extra title string
 
 	# Using a simple input molecule file
-	datas=[] #savine mol datas
 	if (options.input != "" and options.multi == ""):
 		filename=options.input
 		fnamelist=os.path.splitext(filename)
@@ -428,19 +436,41 @@ if __name__ =="__main__":
 			fformat=fnamelist[1][1:]
 		fformat=fformat.lower()
 
+		extradatacolumn=0
+		if (fformat=='pqrt' or fformat=='pqra' or fformat=='pqrx'):
+			extradatacolumn=1
+		elif (fformat=='pqrta'):
+			extradatacolumn=2
+		for datanum in range(0,extradatacolumn):
+			for i in ["Max","Min","Sum","Aver","Std"]:
+				extrastring+=(i+"_"+"data"+str(datanum+1)+" ")
+			for i in ["H","C","N","O","F","P","S","Cl","Br","I"]:
+				for j in ["Max","Min","Sum","Aver","Std"]:
+					extrastring+=(i+"_"+"data"+str(datanum+1)+"_"+j+" ")
+		# Print header
+		if (options.title): print featureString()+extrastring	
+
 		# Special for pqr related format
 		if (fformat=="pqr"):
 			mol=pybel2.readstring('pqr',pqrbug(filename));
 		elif (fformat=="pqra" or fformat=="pqrx" or fformat=="pqrt"):
-			molstr,datas=pqrx_reader(filename, lastlen=12, columns=1);
+			molstr,datas=pqrx_reader(filename, lastlen=12*extradatacolumn, columns=extradatacolumn);
 			mol=pybel2.readstring('pqr',molstr);
 		elif (fformat=="pqrta"):
-			molstr,datas=pqrx_reader(filename, lastlen=24, columns=2);
+			molstr,datas=pqrx_reader(filename, lastlen=12*extradatacolumn, columns=extradatacolumn);
 			mol=pybel2.readstring('pqr',molstr);
 		else:
 			mol=pybel2.readfile(fformat,filename).next();
+		# Calculate general features
 		features=CalcFeatures(mol,printInfo=False)
-		print fnamelist[0]+" "+" ".join(features)
+		# Calculate extra features based on input data file
+		dataout=[] #saving extra output features
+		for data in datas:
+			dataout+=CalcDataElementFeature(mol,data)
+		features+=dataout
+
+		print fnamelist[0]+" "+" ".join(map(str,features))
+
 	# Compound id in a file to process batch 
 	elif (options.multi != "" and options.format != ""):
 		fin=open(options.multi)
@@ -448,15 +478,43 @@ if __name__ =="__main__":
 		fin.close()
 		fformat=options.format
 		fformat=fformat.lower()
+
+		extradatacolumn=0
+		if (fformat=='pqrt' or fformat=='pqra' or fformat=='pqrx'):
+			extradatacolumn=1
+		elif (fformat=='pqrta'):
+			extradatacolumn=2
+		for datanum in range(0,extradatacolumn):
+			for i in ["Max","Min","Sum","Aver","Std"]:
+				extrastring+=(i+"_"+"data"+str(datanum+1)+" ")
+			for i in ["H","C","N","O","F","P","S","Cl","Br","I"]:
+				for j in ["Max","Min","Sum","Aver","Std"]:
+					extrastring+=(i+"_"+"data"+str(datanum+1)+"_"+j+" ")
+		# Print header
+		if (options.title): print featureString()+extrastring	
+
 		for f in flist:
 			try:
-				filename=f.strip()+"."+fformat
+				filename=options.prefixname+f.strip()+options.midname+"."+fformat
 				if (fformat=="pqr"):
 					mol=pybel2.readstring('pqr',pqrbug(filename));
+				elif (fformat=="pqra" or fformat=="pqrx" or fformat=="pqrt"):
+					molstr,datas=pqrx_reader(filename, lastlen=12*extradatacolumn, columns=extradatacolumn);
+					mol=pybel2.readstring('pqr',molstr);
+				elif (fformat=="pqrta"):
+					molstr,datas=pqrx_reader(filename, lastlen=12*extradatacolumn, columns=extradatacolumn);
+					mol=pybel2.readstring('pqr',molstr);
 				else:
 					mol=pybel2.readfile(fformat,filename).next();
+				# Calculate general features
 				features=CalcFeatures(mol,printInfo=False)
-				print f.strip()+" "+" ".join(features)	
+				# Calculate extra features based on input data file
+				dataout=[] #saving extra output features
+				for data in datas:
+					dataout+=CalcDataElementFeature(mol,data)
+				features+=dataout
+
+				print f.strip()+" "+" ".join(map(str,features))	
 			except IOError:
 				print f.strip()		
 	else:
