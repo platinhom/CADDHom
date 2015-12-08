@@ -1,10 +1,121 @@
 #! /usr/bin/env python
-import sys,heapq,string
+import sys,heapq,string,traceback
 import numpy as np
 from optparse import OptionParser
 
 
-# Function defined here
+####### Class defined here ############
+
+class Data2D(object):
+	"""Class to read/deal with the 2D data."""
+
+	def __init__(self):
+		self.data=None;
+		self.row=0;
+		self.column=0;
+		self.filename="";
+
+	def readfile(self,filename,delim=None,dtype="float64"):
+		"""Read data from file. 
+		delim is the delimiter for data.
+		convert is the method to convert the data."""
+		if (not filename):
+			raise IOError("No file was found!");
+		# read file
+		f=open(filename);
+		datas=[]
+		if (convert==str):
+			for line in f:
+				data=line.strip().split(delim)
+				datas.append(data)
+		f.close()
+		# set the object property
+		self.filename=filename
+		self.data=np.array(datas,dtype=dtype)
+		# only one data or one column
+		if self.data.ndim==1:
+			if (len(datas)==1):
+				self.data.shape=(1,self.data.shape[0]);
+			else:
+				self.data.shape=(self.data.shape[0],1);
+		self.row=self.data.shape[0]
+		self.column=self.data.shape[1]
+		del datas[:]
+		return self.datas
+
+	def LeastSqaures(self,dataY,rlamda=500):
+		# Least Sqaures for y data and x data.
+		# dataY is Data2D object
+		# Return the weight for x
+		try:
+			# data: (mx,1)
+			if (self.data.ndim==1):
+				mx=self.data.size;
+				nx=1
+			# data: (mx, nx)
+			elif (self.data.ndim==2):
+				mx, nx=self.data.shape;
+			else:
+				raise ValueError, "data for x dimension > 2!";
+			# data: (my, 1)
+			if (dataY.data.ndim==1):
+				my=dataY.data.size;
+				ny=1
+			# data: (my, ny)
+			elif (dataY.data.ndim==2):
+				my, ny=dataY.data.shape;
+			else:
+				raise ValueError, "data for y dimension > 2!";
+
+			# data: (mx, nx) * (my, 1)
+			if (mx==my and ny==1):
+				wts=np.zeros((1,nx))
+				wts[0, :]=(np.linalg.inv(x.T.dot(x)+rlamda*np.eye(nx)).dot(x.T.dot(y))).T
+				return wts
+			# data: (mx, nx) * (1, my)
+			elif( mx==ny and my==1):
+				wts=np.zeros((1,nx))
+				wts[0, :]=(np.linalg.inv(x.T.dot(x)+rlamda*np.eye(nx)).dot(x.T.dot(y.T))).T
+			# data: (my, ny)*(mx, 1)
+			elif( mx==ny and mx==1):
+				wts=np.zeros((1,nx))
+				wts[0, :]=(np.linalg.inv(y.T.dot(y)+rlamda*np.eye(ny)).dot(y.T.dot(x.T))).T
+			# data: (mx, nx) * (1, my)
+			elif (mx==my and nx==1):
+				wts=np.zeros((1,nx))
+				wts[0, :]=(np.linalg.inv(y.T.dot(y)+rlamda*np.eye(ny)).dot(y.T.dot(x.T))).T
+			else:
+				raise ValueError, "Not match array size for x and y!";
+		except:
+			traceback.print_exc()
+			exit()	
+
+	def CalcRMSArray(self,arr):
+		# Calculate the RMS for deltaY array
+		return np.sqrt((arr.T.dot(arr)).ravel()[0]/arr.shape[0])
+
+
+####### Function defined here ############
+
+def readfile(self,filename,delim=None,convert=str):
+	"""Read data from file. 
+	delim is the delimiter for data.
+	convert is the method to convert the data."""
+	if (not filename):
+		raise IOError("No file was found!");
+	f=open(filename);
+	datas=[]
+	if (convert==str):
+		for line in f:
+			data=line.strip().split(delim)
+			datas.append(data)
+	else:
+		for line in f:
+			data=line.strip().split(delim)
+			datas.append(map(convert,data))
+	f.close()
+	return datas
+
 def similarity(vals1,vals2,maxs,mins,weights,coeff=2):
 	"""Calculate the similarity between two data;
 	sim=weight[i]*(1-|vals1[i]-vals2[i]|/(maxs[i]-mins[i]))^coeff 
@@ -21,7 +132,7 @@ def similarity(vals1,vals2,maxs,mins,weights,coeff=2):
 	return sv
 
 def outputmatrix(filename,datas):
-	# Write out matrix
+	"""Write out matrix"""
 
 	# Check data
 	if (len(datas)<1 or len(datas[0])<1 ):
@@ -42,9 +153,10 @@ def outputmatrix(filename,datas):
 		fw.write(" ".join(map(formatlambda,(datas[i])))+"\n")
 	fw.close()
 
+
 def mostsimilarMOL(filename=None, weighs=None, 
 	neednum=1, datas=None,outfilesimmatrix=None):
-	# Calculate similarity matrix and top #neednum similar mol index.
+	""" Calculate similarity matrix and top #neednum similar mol index."""
 
 	if (not filename and (not datas)):
 		raise ValueError("Error blank file name or blank data")
@@ -58,6 +170,7 @@ def mostsimilarMOL(filename=None, weighs=None,
 			tmp=line.strip().split()
 			datas.append(map(float,tmp))
 		fr.close()
+
 	# Read file as use datas as index
 	elif(filename and datas):
 		fr=open(filename)
@@ -135,6 +248,33 @@ def mostsimilarMOL(filename=None, weighs=None,
 		#print " ".join(map(formatlambda,outnums))
 	return (simmatrix, simmols)
 
+def readtraindatas(filename):
+	"""Read data for training. """
+	if (not filename):
+		raise IOError("No train file was found!");
+	f=open(filename)
+	datas=[]
+	for line in f:
+		data=line.strip().split()
+		datas.append(data)
+	f.close()
+	return datas
+
+def traindatas(datas):
+	"""Train data to get weights.
+	Input as: [[d11, d12, d13..], [d21, d22, d23..], .."""
+	weights=[]
+
+	return weights
+
+def predictdata(data, weights):
+	'''Predict value for giving data with given weights'''
+	pvalue=0;
+	return pvalue;
+
+def errordata(pvals, rvals):
+	"""Errors between giving predicted values (list) and real values (list)"""
+	return 0;
 
 if (__name__=="__main__"):
 	helpdes='''Calculate features of molecules based on Pybel and Openbabel.
@@ -154,18 +294,21 @@ if (__name__=="__main__"):
 	parser.add_option("-w", "--weighs", action="store", 
 					dest="weighs", default="",
 					help="Giving all weights, as -w 1,2,3. Default blank to set all to 1.")
-	parser.add_option("--mid", action="store", 
-					dest="midname", default="",
-					help="Middle part of file name between id read from -m file and -f format extension")
+	parser.add_option("-d","--dindex", action="store", 
+					dest="dataindex", default="",
+					help="Giving data index for features, as -d 1,2,3. Default blank to use all features.")
 	parser.add_option("-s", "--simout", action="store", 
 					dest="simmatrix", default="",
 					help="Output file for similarity matrix.")
 	parser.add_option("-o", "--output", action="store", 
 					dest="output", default="",
 					help="The output file to save result")
-	parser.add_option("-t", "--title", action="store_true", 
-					dest="title", default=False,
-					help="Print the feature title")
+	parser.add_option("-t", "--train", action="store", 
+					dest="train", default="",
+					help="Training set file")
+	parser.add_option("-r", "--real", action="store", 
+					dest="real", default="",
+					help="File saving real value for data")
 	(options, args) = parser.parse_args()
 	
 	if (len(sys.argv)<2):
@@ -188,12 +331,26 @@ if (__name__=="__main__"):
 		if (len(tmp)>1):
 			weighs=[ int(string.strip(i)) for i in tmp]
 
+	dataindex=None
+	if options.dataindex:
+		tmp=options.dataindex.split(",")
+		if (len(tmp)>1):
+			dataindex=[ int(string.strip(i)) for i in tmp]
+
 	outfilesimmatrix=""	
 	if (options.simmatrix):
 		outfilesimmatrix=options.simmatrix
 
+	trainfile=""	
+	if (options.train):
+		trainfile=options.train
+
+	realfile=""	
+	if (options.real):
+		realfile=options.real
+
 	simmatrix,simmols=mostsimilarMOL(options.input,weighs=weighs, neednum=neednum, 
-		datas=None,outfilesimmatrix=outfilesimmatrix);
+		datas=dataindex,outfilesimmatrix=outfilesimmatrix);
 
 	if (options.output):
 		outputmatrix(options.output,simmols);
