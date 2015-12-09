@@ -215,6 +215,7 @@ class KPlaneObj():
 			elif( mx==ny and my==1):
 				wts=np.zeros((1,nx))
 				wts[0, :]=(np.linalg.inv(x.T.dot(x)+rlamda*np.eye(nx)).dot(x.T.dot(y.T))).T
+				return wts
 			else:
 				raise ValueError, "Not match array size for x and y!";
 		except:
