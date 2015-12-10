@@ -3,9 +3,15 @@
 __author__="Zhixiong Zhao"
 __date__="2015.12.08"
 
-import sys, string
+import string
 #import traceback
 import numpy as np
+
+class mlarray(np.ndarray):
+	@property
+	def I(self):
+		''' Inverse of the array.'''
+		return np.linalg.inv(self.data)
 
 class Data2D(object):
 	"""Class to deal with the 2D data in numpy array."""
@@ -83,6 +89,13 @@ class Data2D(object):
 	def __iter__(self):
 		return self.data.__iter__();
 
+	def __add__(self,y):
+		return self.data.__add__(y);
+
+	def __sub__(self,y):
+		return self.data.__sub__(y);
+
+
 	# ndarray-based
 	@property
 	def ndim(self):
@@ -120,10 +133,12 @@ class Data2D(object):
 	
 	@property
 	def ADT(self):
+		'''array.dot(array.T)'''
 		return Data2D(self.data.dot(self.data.T))
 	
 	@property
 	def TDA(self):
+		'''array.T.dot(array)'''
 		return Data2D(self.data.T.dot(self.data))	
 
 
@@ -310,7 +325,33 @@ class Data2D(object):
 			+"\n");
 		f.close()
 
-	def LeastSqaures(self,dataY,rlamda=500):
+	## test function for filter
+	#def testfunc(self,d):
+	#	if d[0]>1:return True; 
+	#	else: return False
+	def filter(self,func, column=False):
+		'''Use a filter function to filter the data.
+		When func(data[i]) return True, save it. 
+		The filter can one by one in row or in column.'''
+		copydata=None
+		if column:
+			copydata=self.T
+		else:
+			copydata=self
+		outdata=np.zeros(copydata.shape)	
+		savenum=0;
+		for d in copydata:
+			if (func(d)):
+				outdata[savenum]=d
+				savenum+=1;
+		finaldata=outdata[:savenum,:]
+		if (column):
+			return Data2D(finaldata.T, dtype=self.dtype)
+		else:
+			return Data2D(finaldata, dtype=self.dtype)
+
+	def LeastSquares(self,dataY,rlamda=500):
+		'''Least-Squares method to calculate weight W'''
 		mx, nx=self.data.shape;
 		# data: (my, 1)
 		if (dataY.ndim==1):
@@ -322,38 +363,74 @@ class Data2D(object):
 		else:
 			raise ValueError, "data for y dimension > 2!";
 
-		wts=np.zeros((1,nx))
+		wts=np.zeros((nx,1))
 		# data: (mx, nx) * (my, 1)
 		if (mx==my and ny==1):
 			# (self.TDA+rlamda*np.eye(nx)).I.dot(self.T.dot(Y)).T
-			wts[0, :]=(np.linalg.inv(self.data.T.dot(self.data)+rlamda*np.eye(nx)).dot(self.data.T.dot(dataY))).T
+			wts=(np.linalg.inv(self.data.T.dot(self.data)+rlamda*np.eye(nx)).dot(self.data.T.dot(dataY)))
 		# data: (mx, nx) * (1, my)
 		elif( mx==ny and my==1):
-			wts[0, :]=(np.linalg.inv(self.data.T.dot(self.data)+rlamda*np.eye(nx)).dot(self.data.T.dot(dataY.T))).T
+			wts=(np.linalg.inv(self.data.T.dot(self.data)+rlamda*np.eye(nx)).dot(self.data.T.dot(dataY.T)))
 		else:
 			raise ValueError, "Not match array size for x and y!";
 		return Data2D(data=wts,name="weight");
 
-class LinearTransform2D(object):
+
+#########################################
+class LT2D(object):
 	"""Linear Transformation for ndarray/Data2D"""
 	def __init__(self, X, Y, rlamda=500):
 		X=self.normX(X);
 		self.X=X;
-		Y=self.normY(Y);
-		if (self.checkXY(X,Y,checkXY=True)):
+		Y=self.normY(Y,checkXY=True);
+		if (self.checkXY(X,Y)):
 			self.Y=Y
 			self.rlamda=rlamda
-			self.W=X.LeastSqaures(self.Y,rlamda=self.rlamda)
+			# W for weights for input X/Y
+			self.W=self.LeastSquares(self.X, self.Y, rlamda=self.rlamda)
+			# train for training LT2D
+			self._train=None
 		else:
 			raise ValueError("Error for matching X-Y size..")
 
 	@property
 	def row(self):
+		'''row number of X'''
 		return self.X.shape[0]
 
 	@property
 	def col(self):
+		'''column number of X'''
 		return self.X.shape[1]
+
+	@property
+	def error(self):
+		'''Error array from current Y'=XW and real Y'''
+		return self.calcError()
+
+	@property
+	def rms(self):
+		'''Self RMS'''
+		return self.calcRMS()
+
+	@property
+	def WT(self):
+		'''WT for weights from training set for test set/validation'''
+		if (self.train): return self.train.W
+
+	@property
+	def train(self):
+		# Saving a training LT2D object
+		if (not self._train):
+			raise ValueError('Train model is not set!')
+			return None
+		return self._train
+
+	@train.setter
+	def train(self,value):
+		if (not isinstance(value,LT2D)):
+			raise ValueError("Error, argument should be LT2D class")
+		self._train=value;
 
 	def normX(self, X):
 		'''Normalize X as ndarray'''
@@ -379,23 +456,35 @@ class LinearTransform2D(object):
 		'''Check X-Y shape consistent'''
 		return X.row==Y.row
 
-	def resetX(self, X):
+	###### Reset some value and recalculate
+
+	def resetX(self, X, rlamda=None):
 		'''reset X and W'''
+		if (rlamda is None): 
+			rlamda=self.rlamda;
 		self.X=self.normX(X);
-		self.W=X.LeastSqaures(self.Y,rlamda=self.rlamda)
+		self.W=self.LeastSquares(self.X,self.Y,rlamda=rlamda)
 
-	def resetY(self,Y):
+	def resetY(self,Y, rlamda=None):
 		'''reset Y and W'''
+		if (not rlamda): rlamda=self.rlamda;
 		self.Y=self.normY(Y)
-		self.W=X.LeastSqaures(self.Y,rlamda=self.rlamda)
+		self.W=self.LeastSquares(self.X, self.Y, rlamda=rlamda)
 
-	def LeastSqaures(self,dataX=None,dataY=None,rlamda=500):
-		# Least Sqaures for y data and x data.
-		# dataX/Y is ndarray/Data2D object
-		# Return the weight for x
+	def resetR(self,rlamda):
+		'''recalculate weight based on given rlamda'''
+		self.W=self.LeastSquares(self.X, self.Y, rlamda=rlamda)
+
+	##### Calculate Linear Tranformation methods
+	def LeastSquares(self,dataX=None,dataY=None,rlamda=500):
+			'''Least Sqaures for y data and x data.
+			- dataX/Y is ndarray/Data2D object
+			- Return the weight for x'''
 		#try:
-			if (not dataX):dataX=self.X
-			if (not dataY):dataY=self.Y
+			if (dataX is None):
+				dataX=self.X
+			if (dataY is None):
+				dataY=self.Y
 			# data: (mx,1)
 			if (dataX.ndim==1):
 				mx=dataX.size;
@@ -418,21 +507,29 @@ class LinearTransform2D(object):
 			# data: (mx, nx) * (my, 1)
 			wts=None
 			if (mx==my and ny==1):
-				wts=np.zeros((1,nx))
-				wts[0, :]=(np.linalg.inv(dataX.T.dot(dataX)+rlamda*np.eye(nx)).dot(dataX.T.dot(dataY))).T
+				wts=np.zeros((nx,1))
+				wts=(np.linalg.inv(dataX.T.dot(dataX)+rlamda*np.eye(nx)).dot(dataX.T.dot(dataY)))
+				#wts=np.zeros((1,nx))
+				#wts[:, 0]=(np.linalg.inv(dataX.T.dot(dataX)+rlamda*np.eye(nx)).dot(dataX.T.dot(dataY))).T
 			# data: (mx, nx) * (1, my)
-			elif( mx==ny and my==1):
-				wts=np.zeros((1,nx))
-				wts[0, :]=(np.linalg.inv(dataX.T.dot(dataX)+rlamda*np.eye(nx)).dot(dataX.T.dot(dataY.T))).T
+			elif (mx==ny and my==1):
+				#wts=np.zeros((1,nx))
+				#wts[:,0]=(np.linalg.inv(dataX.T.dot(dataX)+rlamda*np.eye(nx)).dot(dataX.T.dot(dataY.T))).T
+				wts=np.zeros((nx,1))
+				wts=(np.linalg.inv(dataX.T.dot(dataX)+rlamda*np.eye(nx)).dot(dataX.T.dot(dataY.T)))
 			### Should never happen if give correct X and Y
 			# data: (my, ny)*(mx, 1)
-			elif( mx==ny and nx==1):
-				wts=np.zeros((1,ny))
-				wts[0, :]=(np.linalg.inv(dataY.T.dot(dataY)+rlamda*np.eye(ny)).dot(y.T.dot(dataX))).T
+			elif ( mx==ny and nx==1):
+				#wts=np.zeros((1,ny))
+				#wts[:,0]=(np.linalg.inv(dataY.T.dot(dataY)+rlamda*np.eye(ny)).dot(y.T.dot(dataX))).T
+				wts=np.zeros((ny,1))
+				wts=(np.linalg.inv(dataY.T.dot(dataY)+rlamda*np.eye(ny)).dot(y.T.dot(dataX)))
 			# data: (mx, nx) * (1, my)
 			elif (mx==my and mx==1):
-				wts=np.zeros((1,ny))
-				wts[0, :]=(np.linalg.inv(dataY.T.dot(dataY)+rlamda*np.eye(ny)).dot(y.T.dot(dataX.T))).T
+				#wts=np.zeros((1,ny))
+				#wts[:,0]=(np.linalg.inv(dataY.T.dot(dataY)+rlamda*np.eye(ny)).dot(y.T.dot(dataX.T))).T
+				wts=np.zeros((ny,1))
+				wts=(np.linalg.inv(dataY.T.dot(dataY)+rlamda*np.eye(ny)).dot(y.T.dot(dataX.T)))
 			else:
 				raise ValueError, "Not match array size for x and y!";
 			return Data2D(data=wts,name="weight");
@@ -440,14 +537,93 @@ class LinearTransform2D(object):
 		#	traceback.print_exc()
 		#	exit(1)
 
-	def calcY(self,weights):
-		if (isinstance(weights,list) or isinstance(weights,tuple)):
-			weights=Data2D(weights,name="weight")
+	def calcY(self,weight):
+		'''Calculate the Y' for given Weight based on current X'''
+		if (isinstance(weight,list) or isinstance(weight,tuple)):
+			weight=Data2D(weight,name="weight")
+		if (weight.shape[0] is 1): 
+			weight.resize((weight.size,1));
+		Y=self.X.dot(weight)
+		return Y
 
-	def calcWeight(self,Y):
-		pass
+	def calcWeight(self,Y, rlamda=None):
+		'''Calculate the Weight for given Y based on current X'''
+		if (isinstance(Y,list) or isinstance(Y,tuple)):
+			Y=Data2D(Y,name="Y")
+		if (rlamda is None):
+			rlamda=self.rlamda;
+		if (Y.shape[0] is 1): 
+			Y.resize((Y.size,1));
+		return self.LeastSquares(self.X, Y, rlamda=rlamda);
 
+	def calcError(self, Y=None, Abs=False):
+		'''Calculate the Error array for given Y and current Y
+		- Abs: Calculate Absolute Error array.
+		- if Y is not given, calculate current delta Y'''
+		if (isinstance(Y,list) or isinstance(Y,tuple)):
+			Y=Data2D(Y,name="Y")
+		if (Y is None): 
+			Y=self.calcY(self.W);
+		if (Y.shape[0] is 1): 
+			Y.resize((Y.size,1));
+		if (Abs):
+			return np.abs(Y-self.Y)
+		else:		
+			return Y-self.Y
 
-	def calcRMSArray(self,arr):
-		# Calculate the RMS for deltaY array
-		return np.sqrt((arr.T.dot(arr)).ravel()[0]/arr.shape[0])
+	def calcRMS(self,Err=None, Y=None, weight=None):
+		'''Calculate the RMS based on given data
+		- If Err is given, calculate RMS directly.
+		- If no Err and Y given, calculate Error based on given Y firstly
+		- If no Err & Y, but weight given, calculate Y based on given weight firstly
+		- If no Err & Y & weight, calculate RMS based on current Y'=XW '''
+
+		if (isinstance(Err,list) or isinstance(Err,tuple)):
+			Err=Data2D(Err,name="Error")
+		if (isinstance(Y,list) or isinstance(Y,tuple)):
+			Y=Data2D(Y,name="Y")
+		if (isinstance(weight,list) or isinstance(weight,tuple)):
+			weight=Data2D(weight,name="weight")
+
+		if (Err is None and Y is None and weight is None):
+			weight=self.W
+			if (weight.shape[0] is 1): weight.resize((weight.size,1));			
+			Err=self.X.dot(weight)-self.Y;
+		if (Err is None and Y is None and weight is not None):
+			if (weight.shape[0] is 1): weight.resize((weight.size,1));
+			Y=self.calcY(weight)
+		if (Err is None and Y is not None):
+			if (Y.shape[0] is 1): Y.resize((Y.size,1));
+			Err=self.calcError(Y)
+		# Calculate the RMS for deltaY Error Array
+		return np.sqrt((Err.T.dot(Err)).ravel()[0]/Err.shape[0])
+
+	def getErrorRMS(self,weight=None,rlamda=None):
+		'''Calculate Error and RMS based on current X and Y.
+		- When weight is given, using the given weight;
+		- When weight is not given and rlamda is given, recalculate the weight
+		- When weight and rlamda is not given, using the current W''' 
+		if ( weight is None and rlamda is None): 
+			weight=self.W;
+		elif ( weight is None and rlamda is not None):
+			weight=self.calcWeight(self.Y,rlamda);
+		return self.calcError(self.calcY(weight)),self.calcRMS(weight=weight)
+
+	##### Methods for train-test set
+	def testY(self, train=None):
+		'''Calculate the Y' based on training set W'''
+		if (train is None):
+			WT=self.WT
+		else:
+			WT=train.W
+		return self.calcY(WT)
+
+	def testError(self, train=None):
+		'''Calculate the Error array based on training set W'''
+		return self.calcError(self.testY(train));
+
+	def testRMS(self, train=None):
+		'''Calculate the RMS based on training set W'''
+		Err=self.testError(train);
+		return np.sqrt((Err.T.dot(Err)).ravel()[0]/Err.shape[0])
+
