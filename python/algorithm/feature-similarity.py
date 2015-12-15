@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 import sys,heapq,string,traceback
 import numpy as np
+import Data2D as D2
 from optparse import OptionParser
 
 

@@ -7,6 +7,11 @@ import string
 #import traceback
 import numpy as np
 
+### Test Data
+a=[[1,2,3],[2,3,4],[3,4,5],[4,5,6]]
+b=Data2D(a)
+c=Data2D([1,1.2,1.4,1.6]).T
+
 class mlarray(np.ndarray):
 	@property
 	def I(self):
@@ -349,6 +354,60 @@ class Data2D(object):
 			return Data2D(finaldata.T, dtype=self.dtype)
 		else:
 			return Data2D(finaldata, dtype=self.dtype)
+
+	def each4min(self,column=False, tolist=False):
+		'''Min for each row/column'''
+		out= np.amin(self.data,axis=0) if column else np.amin(self.data,axis=1).reshape(self.data.shape[0],1)
+		return  out.ravel().tolist() if tolist else Data2D(out,dtype=self.dtype)
+
+	def each4max(self,column=False, tolist=False):
+		'''Max for each row/column'''
+		out= np.amax(self.data,axis=0) if column else np.amax(self.data,axis=1).reshape(self.data.shape[0],1)
+		return  out.ravel().tolist() if tolist else Data2D(out,dtype=self.dtype)
+
+	def each4sum(self,column=False, tolist=False):
+		'''Sum for each row/column'''
+		out= np.sum(self.data,axis=0) if column else np.sum(self.data,axis=1).reshape(self.data.shape[0],1)
+		return  out.ravel().tolist() if tolist else Data2D(out,dtype=self.dtype)
+
+	def each4median(self,column=False, tolist=False):
+		'''Median for each row/column.
+		Given a vector V of length N, the median of V is the middle value of a sorted copy of V, 
+		V_sorted - i.e., V_sorted[(N-1)/2], when N is odd. 
+		When N is even, it is the average of the two middle values of V_sorted.'''
+		out= np.median(self.data,axis=0) if column else np.median(self.data,axis=1).reshape(self.data.shape[0],1)
+		return  out.ravel().tolist() if tolist else Data2D(out,dtype=self.dtype)
+
+	def each4average(self,weights=None, column=False, tolist=False):
+		'''Average for each row/column.
+		Different to mean, it can be given a weight for each element!'''
+		out= np.average(self.data,weights=weights,axis=0) if column else np.average(self.data,weights=weights,axis=1).reshape(self.data.shape[0],1)
+		return  out.ravel().tolist() if tolist else Data2D(out,dtype=self.dtype)
+
+	def each4mean(self,column=False, tolist=False):
+		'''Mean for each row/column'''
+		out= np.mean(self.data,axis=0) if column else np.mean(self.data,axis=1).reshape(self.data.shape[0],1)
+		return  out.ravel().tolist() if tolist else Data2D(out,dtype=self.dtype)
+
+	def each4std(self,column=False, tolist=False):
+		'''Standard deviation for each row/column'''
+		out= np.std(self.data,axis=0) if column else np.std(self.data,axis=1).reshape(self.data.shape[0],1)
+		return  out.ravel().tolist() if tolist else Data2D(out,dtype=self.dtype)
+
+	def each4var(self,column=False, tolist=False):
+		'''Variance for each row/column'''
+		out= np.var(self.data,axis=0) if column else np.var(self.data,axis=1).reshape(self.data.shape[0],1)
+		return  out.ravel().tolist() if tolist else Data2D(out,dtype=self.dtype)
+
+	def each4ptp(self,column=False, tolist=False):
+		'''Max-Min for each row/column'''
+		out= np.ptp(self.data,axis=0) if column else np.ptp(self.data,axis=1).reshape(self.data.shape[0],1)
+		return  out.ravel().tolist() if tolist else Data2D(out,dtype=self.dtype)
+
+	def each4percentile(self, q, column=False, tolist=False):
+		'''(Max-Min)*q/100 for each row/column'''
+		out= np.percentile(self.data,q,axis=0) if column else np.percentile(self.data,q,axis=1).reshape(self.data.shape[0],1)
+		return  out.ravel().tolist() if tolist else Data2D(out,dtype=self.dtype)
 
 	def LeastSquares(self,dataY,rlamda=500):
 		'''Least-Squares method to calculate weight W'''
