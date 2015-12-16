@@ -331,7 +331,7 @@ class Data2D(object):
 		f.close()
 
 	## test function for filter
-	#def testfunc(self,d):
+	#def testfunc(self,d): 
 	#	if d[0]>1:return True; 
 	#	else: return False
 	def filter(self,func, column=False):
